@@ -7,6 +7,7 @@ pthread_mutex_t mutex_init = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_joining = PTHREAD_MUTEX_INITIALIZER;
 
 int sock;
+int nb_tour = 0;
 
 void handler_reflexion(int sig) {
 	/* Reveiller le serveur (fin de la phase de reflexion) */
@@ -21,10 +22,25 @@ void handler_resolution(int sig) {
 }
 
 void end_session() {
+        User *user, *tmp;
+        char buff[60];
 	fprintf(stderr,"Ending session...no enough users\n");
+
+        pthread_mutex_lock (&mutex_init);
+        tmp = init->user;
+        while(tmp != NULL) {
+                sprintf(buff, "FINRESO/%s/\n", tmp->username);
+                send(tmp->scom, buff, strlen(buff), 0);
+                user = tmp;
+                tmp = tmp->next;
+                delete_user(user, init);
+        }
+
+        pthread_mutex_unlock (&mutex_init);
+        fprintf(stderr, "Fin endsession\n");
 }
 
-void	start_session() {	
+void start_session() {
 	fprintf(stderr,"Starting session...\n");
 	User *tmp;
 	char msg[100];
@@ -35,7 +51,7 @@ void	start_session() {
 }
 
 void go() {
-	/* Chaque tour de boucle constitue un Tour de jeu */
+        /* Chaque tour de boucle constitue un Tour de jeu si une session a commence. */
 	while(1) {
 		/* Rajouter les utilisateurs qui attendent */
 		int size = 0;
@@ -53,11 +69,18 @@ void go() {
 		pthread_mutex_unlock (&mutex_init);
 		pthread_mutex_unlock (&mutex_joining);
 
-		if(size >= 2)
-			start_session();
-		else if(size < 2)
-			end_session();
+                if(size < 2) {
+                    end_session();
+                    nb_tour = 0;
+                    continue;
+                } else if(size >= 2) {
+                    start_session();
+                }
 
+                printf("Starting...in 10sec\n");
+                sleep(10);
+                printf("Go...\n");
+                nb_tour++;
 		
 		/* Phase de reflexion */
 		
@@ -87,8 +110,8 @@ int send_to_all(int scom, char *name) {
 		if(tmp->scom != scom) {
 			sprintf(msg, "CONNECTE/%s/\n", name);
 			send(tmp->scom, msg, strlen(msg)+1, 0);
-			sprintf(usr, "LIST/%s/%d/\n", tmp->username, tmp->score);
-			send(scom, usr, strlen(usr)+1, 0);
+                        // sprintf(usr, "LIST/%s/%d/\n", tmp->username, tmp->score);
+                        // send(scom, usr, strlen(usr)+1, 0);
 		}
 		tmp = tmp->next;
 	}
@@ -100,8 +123,8 @@ int send_to_all(int scom, char *name) {
 		if(tmp->scom != scom) {
 			sprintf(msg, "CONNECTE/%s/\n", name);
 			send(tmp->scom, msg, strlen(msg)+1, 0);
-			sprintf(usr, "LIST/%s/%d/\n", tmp->username, tmp->score);
-			send(scom, usr, strlen(usr)+1, 0);
+                        // sprintf(usr, "LIST/%s/%d/\n", tmp->username, tmp->score);
+                        // send(scom, usr, strlen(usr)+1, 0);
 		}
 		tmp = tmp->next;
 	}	
@@ -185,7 +208,7 @@ int deconnexion(int scom, char* buff) {
 		fprintf(stderr, "[Serveur] Erreur lors de deconnexion. Command: %s\n", buff);
 		return -1; 
 	}
-	fprintf(stderr, "Username : -> %s \n", username);
+	fprintf(stderr, "Username : -> %s \n", username);
 
 	// Envoyer a tout le monde que le client s'est deconnecte.
 	pthread_mutex_lock (&mutex_init);
@@ -218,6 +241,8 @@ int deconnexion(int scom, char* buff) {
 /*
  * Deconnecte le client au cas ou le client nous envoie une commande
  * vide (non specifiee dans le protocole => on a choisi de le deconnecter).
+ * Ce cas arrive dans le cas ou un client quitte subitement une partie sans
+ * informer le serveur.
  */
 void disconnect_if_connected(int scom) {
 	User *user;
@@ -282,7 +307,7 @@ void* handle_client(void* arg) {
 		fprintf(stderr, "Commande a traiter %s, count %d\n", buff, (int)count);
 
 		if(strlen(buff) <= 1) {
-			printf("[Serveur] Commande client inconnue.\n");
+			printf("[Serveur] Commande client inconnue.\n");
 			break;
 		}
 		switch(decode_header(buff)) {
