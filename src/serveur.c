@@ -144,9 +144,7 @@ int reflexion() {
  * Phase d'enche res.
  */
 int enchere() {
-	pthread_mutex_lock(&mutex_phase); 
-	phase = ENCHERE;
-	pthread_mutex_unlock(&mutex_phase);
+	
 	 
 	return 0;
 }
@@ -413,10 +411,10 @@ void disconnect_if_connected(int scom) {
 	}
 }
 
-void send_il_a_trouve(int scom, char* username) {
+void send_il_a_trouve(int scom, char* username, int coups) {
 	User* tmp;
-	char msg[63];
-	sprintf(msg, "CONNECTE/%s/\n", username);
+	char msg[70];
+	sprintf(msg, "ILATROUVE/%s/%d/\n", username, coups);
 
 	pthread_mutex_lock (&mutex_init); 
 	tmp = init->user;
@@ -442,12 +440,18 @@ void client_trouve(int scom, char *buff) {
 		fprintf(stderr, "[Seveur] Commande client inconnue: %s, count: %d\n", buff, (int)strlen(buff));
 		send(scom, "Commande client inconnue.\n", 28, 0);
 	} else {
-		fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
-		pthread_mutex_lock (&mutex_data_ref); 
-		strcpy(username_ref, username);
-		coups_ref = coups;
-		pthread_mutex_unlock(&mutex_data_ref); 
-		kill(main_pid, SIGALRM);
+		pthread_mutex_lock(&mutex_phase); 
+		if(phase == REFLEXION) {
+			fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
+			pthread_mutex_lock(&mutex_phase); 
+			phase = ENCHERE;
+			pthread_mutex_lock (&mutex_data_ref); 
+			strcpy(username_ref, username);
+			coups_ref = coups;
+			pthread_mutex_unlock(&mutex_data_ref); 
+
+			kill(main_pid, SIGALRM);
+		}
 	}
 		
 }
