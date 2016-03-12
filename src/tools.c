@@ -176,7 +176,7 @@ int decode_header(char *str) {
 }
 
 
-User* cherche_user(Session *session, int scom) {
+User* cherche_user(Session* session, int scom) {
 	User *tmp = session->user;;
 
 	while(tmp != NULL) {
@@ -188,7 +188,7 @@ User* cherche_user(Session *session, int scom) {
 	return NULL;
 }
 
-int get_username(char *buff, char *username) {
+int get_username(char* buff, char* username) {
 	unsigned int i = 0, j = 0;
 	unsigned int size = strlen(buff);
 	char name[50];
@@ -209,7 +209,7 @@ int get_username(char *buff, char *username) {
 	return 0;
 }
 
-int get_username_and_coups(char *buff, char *username, int *coups) {
+int get_username_and_coups(char* buff, char* username, int* coups) {
 	unsigned int i = 0, j = 0;
 	unsigned int size = strlen(buff);
 	char tmp[11], *endptr;
