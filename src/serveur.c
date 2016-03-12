@@ -346,7 +346,7 @@ void* handle_client(void* arg) {
 	}
 	close(scom);
 	disconnect_if_connected(scom);
-	pthread_exit(0);
+	pthread_exit(0); 
 }
 
 
