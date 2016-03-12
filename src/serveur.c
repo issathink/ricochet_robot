@@ -2,38 +2,83 @@
 
 /* Variable pour stocker toutes les sessions en cours */
 Session *init, *joining;
-int session_started; 
+int session_started;
 pthread_mutex_t mutex_init = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_joining = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_phase = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_nb_tour = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_is_timeout = PTHREAD_MUTEX_INITIALIZER;
 
 int sock;
 int nb_tour = 0;
+PHASE phase;
+pid_t main_pid;
+
+int is_timeout_ref;
+int is_timeout_enc;
+int is_timeout_res;
+
 
 void handler_reflexion(int sig) {
 	/* Reveiller le serveur (fin de la phase de reflexion) */
 	sig++;
+	fprintf(stderr, "Yay j'ai recu handler reflexion\n");
+
 }
 
 void handler_encheres(int sig) {
 	/* Reveiller le serveur (fin de la phase de reflexion) */
 	sig++;
+	fprintf(stderr, "Yay j'ai recu handler enchere\n");
 }
 
 void handler_resolution(int sig) {
 	/* Reveiller le serveur (fin de la phase de reflexion) */
 	sig++;
+	fprintf(stderr, "Yay j'ai recu handler resolution\n");
 }
 
 /*
  * Phase de reflexion.
  */
-int reflexion() {
+int reflexion() {	
+	int over;	
+	sigset_t set;
+	struct itimerval itv; 
+	struct sigaction action;
+	action.sa_handler = handler_reflexion; 
+	sigemptyset(&action.sa_mask); 
+	action.sa_flags = 0; 
+	sigaction(SIGALRM, &action, (struct sigaction *) 0);
+	itv.it_value.tv_sec = TEMPS_REFLEXION;
+	itv.it_value.tv_usec = 0; 
+	setitimer(ITIMER_REAL, &itv, (struct itimerval *)0);
+	sigfillset(&set);
+	sigdelset(&set, SIGINT);
+	sigdelset(&set, SIGALRM);
+	sigsuspend(&set);
+	
+	pthread_mutex_lock(&mutex_is_timeout);
+	over = is_timeout_ref;
+        pthread_mutex_unlock(&mutex_is_timeout);
+	
+	if(over == 0) {
+		// Le temps ecoule sans avoir recu une proposition
+		
+	} else {
+		// Un client a propose une solution
+		
+	}	
 
-	return 0;	
+	fprintf(stderr, "Yo tout le monde, la phase de reflexion is over.\n");
+	return 0;
+
+	fprintf(stderr, "Un client annonce avoir trouve une solution.\n");	
+	return 1;	
 }
 
 /*
- * Phase d'encheres.
+ * Phase d'enche res.
  */
 int enchere() {
 	 
@@ -102,26 +147,31 @@ void go() {
 		pthread_mutex_unlock (&mutex_joining);
 
         if(size < 2) {
-            end_session();
-            nb_tour = 0;
-            continue;
+        	end_session();
+		pthread_mutex_lock(&mutex_nb_tour); 
+	    	nb_tour = 0;	
+		pthread_mutex_unlock(&mutex_nb_tour);
+            	continue;
         } 
 
         printf("Starting...in 10sec\n");
         sleep(10);
         printf("Go...\n");
 
-        nb_tour++;
+	pthread_mutex_lock(&mutex_nb_tour); 
+	 nb_tour++;
+	pthread_mutex_unlock(&mutex_nb_tour);
+       
         start_session();
 		
-		/* Phase de reflexion */
-		
+	/* Phase de reflexion */
+	reflexion();
 
-		/* Phase d'encheres */
+	/* Phase d'encheres */
+	enchere();
 
-
-		/* Phase de resolution */
-		
+	/* Phase de resolution */
+	resolution();
 		
 	}
 }
@@ -133,7 +183,6 @@ void go() {
 int send_to_all(int scom, char *name) {
 	User *tmp;
 	char msg[100];
-	char usr[100];
 	pthread_mutex_lock (&mutex_init); 
 	tmp = init->user;
 	while(tmp != NULL) {
@@ -142,8 +191,6 @@ int send_to_all(int scom, char *name) {
 		if(tmp->scom != scom) {
 			sprintf(msg, "CONNECTE/%s/\n", name);
 			send(tmp->scom, msg, strlen(msg)+1, 0);
-                        // sprintf(usr, "LIST/%s/%d/\n", tmp->username, tmp->score);
-                        // send(scom, usr, strlen(usr)+1, 0);
 		}
 		tmp = tmp->next;
 	}
@@ -155,8 +202,6 @@ int send_to_all(int scom, char *name) {
 		if(tmp->scom != scom) {
 			sprintf(msg, "CONNECTE/%s/\n", name);
 			send(tmp->scom, msg, strlen(msg)+1, 0);
-                        // sprintf(usr, "LIST/%s/%d/\n", tmp->username, tmp->score);
-                        // send(scom, usr, strlen(usr)+1, 0);
 		}
 		tmp = tmp->next;
 	}	
@@ -297,6 +342,40 @@ void disconnect_if_connected(int scom) {
 }
 
 /*
+ * Traite un client lorsqu'un client annonce avoir trouve une solution.
+ */
+void client_trouve(int scom, char *buff) {
+	char username[50];
+	int coups;
+
+	if(get_username_and_coups(buff, username, &coups) == -1) {
+		fprintf(stderr, "[Seveur] Commande client inconnue: %s, count: %d\n", buff, (int)strlen(buff));
+		send(scom, "Commande client inconnue.\n", 28, 0);
+	} else {
+		fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
+		pthread_mutex_lock(&mutex_is_timeout); 
+		is_timeout_ref = 1;
+		pthread_mutex_unlock(&mutex_is_timeout);
+		kill(main_pid, SIGALRM);
+	}
+		
+}
+
+/*
+ * Traite un client lorsqu'un client lorsqu'il enchere.
+ */
+void client_enchere(int scom, char *buff) {
+	
+}
+
+/*
+ * Traite la solution d'un client.
+ */
+void client_resolution(int scom, char *buff) {
+
+}
+
+/*
  * Attente et gestion des commandes d'un client (Thread).
  */
 void* handle_client(void* arg) {
@@ -304,7 +383,7 @@ void* handle_client(void* arg) {
 	int scom;
 	ssize_t count;
 	scom = *((int *) arg);
-
+	
 	if (pthread_detach (pthread_self()) !=0 ) {
  		perror("pthread_detach"); pthread_exit ((void *)1);
  	}
@@ -330,13 +409,13 @@ void* handle_client(void* arg) {
 			printf("[Serveur] Commande pas cense etre la.\n");
 			break;
 		case 4: /* TROUVE  */
-			reflexion(scom, buff);
+			client_trouve(scom, buff);
 			break;
-		case 5: /* PHASE ENCHERE */
-			enchere(scom, buff);
+		case 5: /* ENCHERE */
+			client_enchere(scom, buff);
 			break;
 		case 6: /* PHASE RESOLUTION */
-			resolution(scom, buff);
+			client_resolution(scom, buff);
 			break;
 		default:
 			printf("[Serveur] Something really weird happened.\n");
@@ -356,9 +435,18 @@ int main() {
 	struct sockaddr_in sin, exp;
 	pthread_t conn_id;
 	
+	main_pid = getpid();
 	init = create_session(0);
 	joining = create_session(0);
 	session_started = 0;
+	pthread_mutex_lock(&mutex_phase); 
+	phase = UNDEF;
+	pthread_mutex_unlock(&mutex_phase);
+	pthread_mutex_lock(&mutex_is_timeout);
+	is_timeout_ref = 0;
+	is_timeout_enc = 0;
+	is_timeout_res = 0;
+        pthread_mutex_unlock(&mutex_is_timeout);
 
 	if( (sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { perror("socket"); exit(1); }
 	sin.sin_addr.s_addr = htonl(INADDR_ANY);

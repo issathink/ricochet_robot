@@ -4,10 +4,12 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h> 
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h> 
+#include <sys/time.h> 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pthread.h>
@@ -49,7 +51,7 @@ typedef struct _session {
 	struct _session	*next;
 } Session;
 
-typedef enum { REFLEXION, ENCHERE, RESOLUTION } PHASE;
+typedef enum { REFLEXION, ENCHERE, RESOLUTION, UNDEF } PHASE;
 
 
 /* Manipulation des utilisateurs */
@@ -68,4 +70,5 @@ void			affiche_sessions(Session *head);
 int 			decode_header(char *str);
 User*		cherche_user(Session *session, int scom);
 int 			get_username(char *buff, char *username);
+int 			get_username_and_coups(char *buff, char *username, int *coups);
 void			vider_session(Session *joining);

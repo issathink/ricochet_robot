@@ -209,6 +209,29 @@ int get_username(char *buff, char *username) {
 	return 0;
 }
 
+int get_username_and_coups(char *buff, char *username, int *coups) {
+	unsigned int i = 0, j = 0;
+	unsigned int size = strlen(buff);
+	char tmp[11], *endptr;
+
+	if(get_username(buff, username) == -1)
+		return -1;
+	while(i < size && buff[i] != '/') i++;
+	i++;
+	while(i < size && buff[i] != '/') i++;
+	i++;
+	while(buff[i] != '/')
+		tmp[j++] = buff[i++];
+
+	if(j < 1 || j > 10) return -1;
+	
+	*coups = strtol(tmp, &endptr, 10);
+        if (errno == ERANGE || (errno != 0 && *coups == 0))
+        	return -1;
+
+	return 0;
+}
+
 void	vider_session(Session *joining) {
 	User *user = joining->user;
 	User *tmp;
