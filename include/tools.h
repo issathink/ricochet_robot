@@ -49,6 +49,8 @@ typedef struct _session {
 	struct _session	*next;
 } Session;
 
+typedef enum { REFLEXION, ENCHERE, RESOLUTION } PHASE;
+
 
 /* Manipulation des utilisateurs */
 User*		create_user(char *username, int scom);

@@ -11,14 +11,41 @@ int nb_tour = 0;
 
 void handler_reflexion(int sig) {
 	/* Reveiller le serveur (fin de la phase de reflexion) */
+	sig++;
 }
 
 void handler_encheres(int sig) {
 	/* Reveiller le serveur (fin de la phase de reflexion) */
+	sig++;
 }
 
 void handler_resolution(int sig) {
 	/* Reveiller le serveur (fin de la phase de reflexion) */
+	sig++;
+}
+
+/*
+ * Phase de reflexion.
+ */
+int reflexion() {
+
+	return 0;	
+}
+
+/*
+ * Phase d'encheres.
+ */
+int enchere() {
+	 
+	return 0;
+}
+
+/*
+ * Etape de la resolution d'un tour de l'enigme.
+ */
+int resolution() {
+
+	return 0;
 }
 
 void end_session() {
@@ -46,7 +73,12 @@ void start_session() {
 	char msg[100];
 
 	pthread_mutex_lock (&mutex_init);
-	
+	tmp = init->user;
+	sprintf(msg, "SESSION/(3,4,H)(3,4,G)(12,6,H)/\n");
+	while(tmp != NULL) {
+		send(tmp->scom, msg, strlen(msg)+1, 0);
+		tmp = tmp->next;
+	}
 	pthread_mutex_unlock (&mutex_init);
 }
 
@@ -69,18 +101,18 @@ void go() {
 		pthread_mutex_unlock (&mutex_init);
 		pthread_mutex_unlock (&mutex_joining);
 
-                if(size < 2) {
-                    end_session();
-                    nb_tour = 0;
-                    continue;
-                } else if(size >= 2) {
-                    start_session();
-                }
+        if(size < 2) {
+            end_session();
+            nb_tour = 0;
+            continue;
+        } 
 
-                printf("Starting...in 10sec\n");
-                sleep(10);
-                printf("Go...\n");
-                nb_tour++;
+        printf("Starting...in 10sec\n");
+        sleep(10);
+        printf("Go...\n");
+
+        nb_tour++;
+        start_session();
 		
 		/* Phase de reflexion */
 		
@@ -265,30 +297,6 @@ void disconnect_if_connected(int scom) {
 }
 
 /*
- * Phase de reflexion.
- */
-int reflexion(int scom, char* buff) {
-
-	return 0;	
-}
-
-/*
- * Phase d'encheres.
- */
-int enchere(int scom, char* buff) {
-	 
-	return 0;
-}
-
-/*
- * Etape de la resolution d'un tour de l'enigme.
- */
-int resolution(int scom, char* buff) {
-
-	return 0;
-}
-
-/*
  * Attente et gestion des commandes d'un client (Thread).
  */
 void* handle_client(void* arg) {
@@ -321,7 +329,7 @@ void* handle_client(void* arg) {
 		case 3: /* START SESSION */
 			printf("[Serveur] Commande pas cense etre la.\n");
 			break;
-		case 4: /* PHASE REFLEXION */
+		case 4: /* TROUVE  */
 			reflexion(scom, buff);
 			break;
 		case 5: /* PHASE ENCHERE */
