@@ -2,40 +2,94 @@
 
 /* Variable pour stocker toutes les sessions en cours */
 Session *init, *joining;
-int session_started;
-pthread_mutex_t mutex_init = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_joining = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_phase = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_nb_tour = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_is_timeout = PTHREAD_MUTEX_INITIALIZER;
+int 	session_started;
 
-int sock;
-int nb_tour = 0;
-PHASE phase;
-pid_t main_pid;
+pthread_mutex_t mutex_init = 		PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_joining = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_phase = 		PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_nb_tour = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_is_timeout = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_data_ref = 	PTHREAD_MUTEX_INITIALIZER;
 
-int is_timeout_ref;
-int is_timeout_enc;
-int is_timeout_res;
+int 	sock;
+int 	nb_tour = 1;
+PHASE 	phase;
+pid_t 	main_pid;
 
+int 	is_timeout_ref;
+int 	is_timeout_enc;
+int 	is_timeout_res;
 
+int 	coups_ref;
+char	username_ref[50];
+
+/*
+ * Handler de signal pour indiquer la fin de la phase de reflexion.
+ */
 void handler_reflexion(int sig) {
-	/* Reveiller le serveur (fin de la phase de reflexion) */
+	struct itimerval itv; 
 	sig++;
 	fprintf(stderr, "Yay j'ai recu handler reflexion\n");
-
+	if(sig == SIGINT) {
+		// Desactiver le timer (qui est cense indiquer la fin de la phase).
+		itv.it_value.tv_sec = 0;
+		itv.it_value.tv_usec = 0;
+	    itv.it_interval.tv_sec = 0;
+	    itv.it_interval.tv_usec = 0;
+		setitimer(ITIMER_REAL, &itv, (struct itimerval *)0);
+		pthread_mutex_lock(&mutex_is_timeout); 
+		is_timeout_ref = 1;
+		pthread_mutex_unlock(&mutex_is_timeout);
+	} else if(sig == SIGALRM) {
+		/* Temps ecoule fin de la phase de reflexion */
+		pthread_mutex_lock(&mutex_is_timeout); 
+		is_timeout_ref = 0;
+		pthread_mutex_unlock(&mutex_is_timeout);
+	}
 }
 
+/*
+ * Handler de signal pour indiquer la fin de la phase des encheres.
+ */
 void handler_encheres(int sig) {
 	/* Reveiller le serveur (fin de la phase de reflexion) */
 	sig++;
 	fprintf(stderr, "Yay j'ai recu handler enchere\n");
 }
 
+/*
+ * Handler de signal pour indiquer la fin de la phase de resolution.
+ */
 void handler_resolution(int sig) {
 	/* Reveiller le serveur (fin de la phase de reflexion) */
 	sig++;
 	fprintf(stderr, "Yay j'ai recu handler resolution\n");
+}
+
+
+/*
+ * Envoie a chaque client le score des clients connectes apres un tour.
+ */
+void send_enigme_and_bilan() {
+	User *tmp, *user;
+	char buff[50], *temp;
+
+	pthread_mutex_lock (&mutex_init); 
+	tmp = init->user;
+	sprintf(buff, "TOUR/(2,2,3,4,7,5,6,6,9,3,R)/6(saucisse,3)(brouette,0)/\n");
+	while(tmp != NULL) {
+		user = init->user;
+		while(user != NULL) {
+			// sprintf(temp, "LIST/%s/%d/\n", user->username, user->score);
+			// strcat(buff, temp);
+			
+			user = user->next;
+			// Faire la chaine qui contiendra le score et le nom de tous les utilisateurs
+		}	
+		send(user->scom, buff, strlen(buff)+1, 0);
+		tmp = tmp->next;
+	}
+	pthread_mutex_unlock (&mutex_init); 
 }
 
 /*
@@ -52,6 +106,13 @@ int reflexion() {
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
 	itv.it_value.tv_sec = TEMPS_REFLEXION;
 	itv.it_value.tv_usec = 0; 
+
+	// Informer tout le monde du lancement de la phase de reflexion
+	send_enigme_and_bilan();
+	pthread_mutex_lock(&mutex_phase); 
+	phase = REFLEXION;
+	pthread_mutex_unlock(&mutex_phase);
+
 	setitimer(ITIMER_REAL, &itv, (struct itimerval *)0);
 	sigfillset(&set);
 	sigdelset(&set, SIGINT);
@@ -60,27 +121,32 @@ int reflexion() {
 	
 	pthread_mutex_lock(&mutex_is_timeout);
 	over = is_timeout_ref;
-        pthread_mutex_unlock(&mutex_is_timeout);
+    pthread_mutex_unlock(&mutex_is_timeout);
 	
 	if(over == 0) {
 		// Le temps ecoule sans avoir recu une proposition
+		fprintf(stderr, "Yo tout le monde, la phase de reflexion is over.\n");
+
 		
 	} else {
 		// Un client a propose une solution
-		
+		fprintf(stderr, "Un client annonce avoir trouve une solution.\n");
+		// TUASTROUVE/ (S -> C)
+		send(scom, "TUASTROUVE/\n", 13, 0);
+		send_il_a_trouve(scom, username);
 	}	
 
-	fprintf(stderr, "Yo tout le monde, la phase de reflexion is over.\n");
+	
 	return 0;
-
-	fprintf(stderr, "Un client annonce avoir trouve une solution.\n");	
-	return 1;	
 }
 
 /*
  * Phase d'enche res.
  */
 int enchere() {
+	pthread_mutex_lock(&mutex_phase); 
+	phase = ENCHERE;
+	pthread_mutex_unlock(&mutex_phase);
 	 
 	return 0;
 }
@@ -89,27 +155,30 @@ int enchere() {
  * Etape de la resolution d'un tour de l'enigme.
  */
 int resolution() {
+	pthread_mutex_lock(&mutex_phase); 
+	phase = RESOLUTION;
+	pthread_mutex_unlock(&mutex_phase);
 
 	return 0;
 }
 
 void end_session() {
-        User *user, *tmp;
-        char buff[60];
+    User *user, *tmp;
+    char buff[63];
 	fprintf(stderr,"Ending session...no enough users\n");
 
-        pthread_mutex_lock (&mutex_init);
-        tmp = init->user;
-        while(tmp != NULL) {
-                sprintf(buff, "FINRESO/%s/\n", tmp->username);
-                send(tmp->scom, buff, strlen(buff), 0);
-                user = tmp;
-                tmp = tmp->next;
-                delete_user(user, init);
-        }
+    pthread_mutex_lock (&mutex_init);
+    tmp = init->user;
+    while(tmp != NULL) {
+        sprintf(buff, "FINRESO/%s/\n", tmp->username);
+        send(tmp->scom, buff, strlen(buff), 0);
+        user = tmp;
+        tmp = tmp->next;
+        delete_user(user, init);
+    }
 
-        pthread_mutex_unlock (&mutex_init);
-        fprintf(stderr, "Fin endsession\n");
+    pthread_mutex_unlock (&mutex_init);
+    fprintf(stderr, "Fin endsession\n");
 }
 
 void start_session() {
@@ -117,18 +186,35 @@ void start_session() {
 	User *tmp;
 	char msg[100];
 
-	pthread_mutex_lock (&mutex_init);
+	pthread_mutex_lock(&mutex_init);
 	tmp = init->user;
 	sprintf(msg, "SESSION/(3,4,H)(3,4,G)(12,6,H)/\n");
 	while(tmp != NULL) {
 		send(tmp->scom, msg, strlen(msg)+1, 0);
 		tmp = tmp->next;
 	}
-	pthread_mutex_unlock (&mutex_init);
+	pthread_mutex_unlock(&mutex_init);
+}
+
+/*
+ * Informer tous les clients de la fin de la phase de reflexion.
+ */
+void fin_reflexion() {
+	fprintf(stderr,"Fin reflexion...\n");
+	User *tmp;
+
+	pthread_mutex_lock(&mutex_init);
+	tmp = init->user;
+	while(tmp != NULL) {
+		send(tmp->scom, "FINREFLEXION/\n", 15, 0);
+		tmp = tmp->next;
+	}
+	pthread_mutex_unlock(&mutex_init);
+
 }
 
 void go() {
-        /* Chaque tour de boucle constitue un Tour de jeu si une session a commence. */
+    /* Chaque tour de boucle constitue un Tour de jeu si une session a commence. */
 	while(1) {
 		/* Rajouter les utilisateurs qui attendent */
 		int size = 0;
@@ -146,11 +232,15 @@ void go() {
 		pthread_mutex_unlock (&mutex_init);
 		pthread_mutex_unlock (&mutex_joining);
 
+		pthread_mutex_lock(&mutex_is_timeout); 
+		is_timeout_ref = 0;
+		pthread_mutex_unlock(&mutex_is_timeout);
+
         if(size < 2) {
         	end_session();
-		pthread_mutex_lock(&mutex_nb_tour); 
-	    	nb_tour = 0;	
-		pthread_mutex_unlock(&mutex_nb_tour);
+			pthread_mutex_lock(&mutex_nb_tour); 
+	    	nb_tour = 1;	
+			pthread_mutex_unlock(&mutex_nb_tour);
             	continue;
         } 
 
@@ -158,20 +248,23 @@ void go() {
         sleep(10);
         printf("Go...\n");
 
-	pthread_mutex_lock(&mutex_nb_tour); 
-	 nb_tour++;
-	pthread_mutex_unlock(&mutex_nb_tour);
+		pthread_mutex_lock(&mutex_nb_tour); 
+	 	nb_tour++;
+		pthread_mutex_unlock(&mutex_nb_tour);
        
         start_session();
 		
-	/* Phase de reflexion */
-	reflexion();
+		/* Phase de reflexion */
+		reflexion();
 
-	/* Phase d'encheres */
-	enchere();
+		fin_reflexion();
 
-	/* Phase de resolution */
-	resolution();
+		/* Phase d'encheres */
+		enchere();
+
+		/* Phase de resolution */
+		resolution();
+
 		
 	}
 }
@@ -208,27 +301,6 @@ int send_to_all(int scom, char *name) {
 	pthread_mutex_unlock (&mutex_joining); 
 
 	return 0;
-}
-
-/*
- * Envoie a chaque client le score des clients connectes apres un tour.
- */
-void send_list() {
-	User *tmp, *user;
-	char buff[50];
-
-	pthread_mutex_lock (&mutex_init); 
-	tmp = init->user;
-	while(tmp != NULL) {
-		user = init->user;
-		while(user != NULL) {
-			sprintf(buff, "LIST/%s/%d/\n", user->username, user->score);
-			send(user->scom, buff, strlen(buff)+1, 0);
-			user = user->next;
-		}	
-		tmp = tmp->next;
-	}
-	pthread_mutex_unlock (&mutex_init); 
 }
 
 /*
@@ -278,7 +350,7 @@ int connexion(int scom, char* buff) {
  */
 int deconnexion(int scom, char* buff) {
 	char username[50];
-	char tmp[60];
+	char tmp[63];
 	User *user, *tmpU;
 
 	if(get_username(buff, username) == -1) {
@@ -323,7 +395,7 @@ int deconnexion(int scom, char* buff) {
  */
 void disconnect_if_connected(int scom) {
 	User *user;
-	char buff[60];
+	char buff[63];
 	
 	pthread_mutex_lock (&mutex_joining);
 	user = cherche_user(joining, scom);
@@ -341,6 +413,24 @@ void disconnect_if_connected(int scom) {
 	}
 }
 
+void send_il_a_trouve(int scom, char* username) {
+	User* tmp;
+	char msg[63];
+	sprintf(msg, "CONNECTE/%s/\n", username);
+
+	pthread_mutex_lock (&mutex_init); 
+	tmp = init->user;
+	while(tmp != NULL) {
+		// ILATROUVE/user/coups/ (S -> C)
+		if(tmp->scom != scom) {
+			
+			send(tmp->scom, msg, strlen(msg)+1, 0);
+		}
+		tmp = tmp->next;
+	}
+	pthread_mutex_unlock (&mutex_init); 
+}
+
 /*
  * Traite un client lorsqu'un client annonce avoir trouve une solution.
  */
@@ -353,9 +443,10 @@ void client_trouve(int scom, char *buff) {
 		send(scom, "Commande client inconnue.\n", 28, 0);
 	} else {
 		fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
-		pthread_mutex_lock(&mutex_is_timeout); 
-		is_timeout_ref = 1;
-		pthread_mutex_unlock(&mutex_is_timeout);
+		pthread_mutex_lock (&mutex_data_ref); 
+		strcpy(username_ref, username);
+		coups_ref = coups;
+		pthread_mutex_unlock(&mutex_data_ref); 
 		kill(main_pid, SIGALRM);
 	}
 		
@@ -446,7 +537,7 @@ int main() {
 	is_timeout_ref = 0;
 	is_timeout_enc = 0;
 	is_timeout_res = 0;
-        pthread_mutex_unlock(&mutex_is_timeout);
+    pthread_mutex_unlock(&mutex_is_timeout);
 
 	if( (sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { perror("socket"); exit(1); }
 	sin.sin_addr.s_addr = htonl(INADDR_ANY);

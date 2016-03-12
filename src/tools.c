@@ -1,7 +1,7 @@
 #include "tools.h"
 
-int	USERS_CPT = 0;
-int	SESSIONS_CPT = 0;
+int	USERS_CPT 		= 0;
+int	SESSIONS_CPT 	= 0;
 
 User *create_user(char *username, int scom) {
 	User *user = malloc(sizeof(User));
@@ -232,7 +232,7 @@ int get_username_and_coups(char *buff, char *username, int *coups) {
 	return 0;
 }
 
-void	vider_session(Session *joining) {
+void vider_session(Session *joining) {
 	User *user = joining->user;
 	User *tmp;
 	while(user != NULL) {
