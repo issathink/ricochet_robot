@@ -31,6 +31,7 @@ extern int	SESSIONS_CPT;
 typedef struct _user {
 	int 			id;
 	int 			score;
+	int 			coups;
 	int				scom;
 	char 			*username;
 	struct _user	*next;
@@ -73,4 +74,5 @@ int 		decode_header(char *str);
 User*		cherche_user(Session *session, int scom);
 int 		get_username(char *buff, char *username);
 int 		get_username_and_coups(char *buff, char *username, int *coups);
+int 		get_username_and_deplacements(char* buff, char* username, char* deplacements, int coups);
 void		vider_session(Session *joining);

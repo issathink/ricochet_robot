@@ -10,6 +10,8 @@ pthread_mutex_t mutex_phase = 		PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_nb_tour = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_is_timeout = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_ref = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_data_enc = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_data_sol = 	PTHREAD_MUTEX_INITIALIZER;
 
 int 	sock;
 int 	nb_tour = 1;
@@ -23,6 +25,9 @@ int 	is_timeout_res;
 int 	scom_ref;
 int 	coups_ref;
 char	username_ref[50];
+
+int 	scom_actif;
+int 	coups_actif;
 
 /*
  * Handler de signal pour indiquer la fin de la phase de reflexion.
@@ -446,23 +451,33 @@ void disconnect_if_connected(int scom) {
 void client_trouve(int scom, char *buff) {
 	char username[50];
 	int coups;
+	User* user;
 
 	if(get_username_and_coups(buff, username, &coups) == -1) {
 		fprintf(stderr, "[Seveur] Commande client inconnue: %s, count: %d\n", buff, (int)strlen(buff));
 		send(scom, "Commande client inconnue.\n", 28, 0);
 	} else {
-		pthread_mutex_lock(&mutex_phase); 
-		if(phase == REFLEXION) {
-			fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
-			pthread_mutex_lock(&mutex_phase); 
-			phase = ENCHERE;
-			pthread_mutex_lock (&mutex_data_ref); 
-			strcpy(username_ref, username);
-			coups_ref = coups;
-			scom_ref = scom;
-			pthread_mutex_unlock(&mutex_data_ref); 
+		fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
 
-			kill(main_pid, SIGALRM);
+		pthread_mutex_lock(&mutex_init);
+		user = cherche_user(init, scom);
+		if(user != NULL) {
+			user->coups = coups;
+			pthread_mutex_unlock(&mutex_init);
+			pthread_mutex_lock(&mutex_phase);
+			if(phase == REFLEXION) {
+				pthread_mutex_lock(&mutex_phase); 
+				phase = ENCHERE;
+				pthread_mutex_lock (&mutex_data_ref); 
+				strcpy(username_ref, username);
+				coups_ref = coups;
+				scom_ref = scom;
+				pthread_mutex_unlock(&mutex_data_ref); 
+
+				kill(main_pid, SIGALRM);
+			}
+		} else {
+			pthread_mutex_unlock(&mutex_init);
 		}
 	}
 		
@@ -471,7 +486,7 @@ void client_trouve(int scom, char *buff) {
 /*
  * Traite un client lorsqu'un client lorsqu'il enchere.
  */
-void client_enchere(int scom, char *buff) {
+void client_enchere(int scom, char* buff) {
 	char username[50];
 	int coups;
 
@@ -479,6 +494,7 @@ void client_enchere(int scom, char *buff) {
 		fprintf(stderr, "[Seveur] Commande client inconnue: %s, count: %d\n", buff, (int)strlen(buff));
 		send(scom, "Commande client inconnue.\n", 28, 0);
 	} else {
+		fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
 
 	}
 }
@@ -486,8 +502,23 @@ void client_enchere(int scom, char *buff) {
 /*
  * Traite la solution d'un client.
  */
-void client_resolution(int scom, char *buff) {
+void client_resolution(int scom, char* buff) {
+	char username[50], *deplacements;
+	int coups;
 
+	pthread_mutex_lock(&mutex_data_sol);
+	coups = coups_actif;
+	pthread_mutex_unlock(&mutex_data_sol);
+
+	deplacements = malloc(sizeof(char)*(coups+1));
+
+	if(get_username_and_deplacements(buff, username, deplacements, coups) == -1) {
+		fprintf(stderr, "[Seveur] Commande client inconnue: %s, count: %d\n", buff, (int)strlen(buff));
+		send(scom, "Commande client inconnue.\n", 28, 0);
+	} else {
+		fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
+		
+	}
 }
 
 /*

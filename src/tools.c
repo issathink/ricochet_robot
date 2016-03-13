@@ -18,6 +18,7 @@ User *create_user(char *username, int scom) {
 	user->next = NULL;
 	user->id = ++USERS_CPT;
 	user->score = 0;
+	user->coups = -1;
 	user->scom = scom;
 
 	return user;
@@ -44,9 +45,9 @@ int add_user(User *user, Session *session) {
 }
 
 
-User *delete_user(User *user, Session *session) {
+User* delete_user(User *user, Session *session) {
 	Session *tmp = session;
-	User *_user, *head = session->user;
+	User* _user, *head = session->user;
 
 	if(session->size == 0) return NULL;
 	
@@ -78,8 +79,8 @@ void affiche_user(User *user) {
 		printf("  [User] ID: %d, name: %s, score: %d\n", user->id, user->username, user->score);
 }
 
-Session *create_session(int countdown) {
-	Session *session = malloc(sizeof(Session));
+Session* create_session(int countdown) {
+	Session* session = malloc(sizeof(Session));
 	
 	if(session == NULL) return NULL;
 	session->plateau = NULL;
@@ -107,7 +108,7 @@ int add_session(Session *new, Session *list) {
 	return 0;
 }
 
-Session * delete_session(Session *del, Session *list) {
+Session* delete_session(Session *del, Session *list) {
 	Session *tmp = list;
 	Session *session, *head = list;
 
@@ -150,7 +151,7 @@ void affiche_session(Session *session) {
 	}
 }
 
-void	affiche_sessions(Session *head) {
+void affiche_sessions(Session *head) {
 	Session *tmp = head;
 	printf("/******************* Toutes les sessions: ***************/\n");
 	
@@ -244,8 +245,32 @@ int get_username_and_coups(char* buff, char* username, int* coups) {
 	if(j < 1 || j > 10) return -1;
 	
 	*coups = strtol(tmp, &endptr, 10);
-        if (errno == ERANGE || (errno != 0 && *coups == 0))
-        	return -1;
+    if (errno == ERANGE || (errno != 0 && *coups == 0))
+       	return -1;
+
+	return 0;
+}
+
+/*
+ * Decode buff information and writes the name of the user in username
+ * and his solution on the location pointed by coups.
+ * return 0 if everything is fine -1 otherwise.
+ */
+int get_username_and_deplacements(char* buff, char* username, char* deplacements, int coups) {
+	int i = 0, j = 0;
+	int size = strlen(buff);
+
+	if(get_username(buff, username) == -1)
+		return -1;
+	while(i < size && buff[i] != '/') i++;
+	i++;
+	while(i < size && buff[i] != '/') i++;
+	i++;
+	while(buff[i] != '/')
+		deplacements[j++] = buff[i++];
+	deplacements[j] = '\0';
+
+	if(j < 1 || j > coups) return -1;
 
 	return 0;
 }
