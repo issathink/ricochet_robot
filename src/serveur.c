@@ -20,6 +20,7 @@ int 	is_timeout_ref;
 int 	is_timeout_enc;
 int 	is_timeout_res;
 
+int 	scom_ref;
 int 	coups_ref;
 char	username_ref[50];
 
@@ -93,10 +94,32 @@ void send_enigme_and_bilan() {
 }
 
 /*
+ * Informe tous les clients de la propostion d'un joueur.
+ */
+void send_il_a_trouve(int scom, char* username, int coups) {
+	User* tmp;
+	char msg[70];
+	sprintf(msg, "ILATROUVE/%s/%d/\n", username, coups);
+
+	pthread_mutex_lock (&mutex_init); 
+	tmp = init->user;
+	while(tmp != NULL) {
+		// ILATROUVE/user/coups/ (S -> C)
+		if(tmp->scom != scom) {
+			
+			send(tmp->scom, msg, strlen(msg)+1, 0);
+		}
+		tmp = tmp->next;
+	}
+	pthread_mutex_unlock (&mutex_init); 
+}
+
+/*
  * Phase de reflexion.
  */
 int reflexion() {	
-	int over;	
+	int over, coups, scom;
+	char username[50];	
 	sigset_t set;
 	struct itimerval itv; 
 	struct sigaction action;
@@ -126,16 +149,19 @@ int reflexion() {
 	if(over == 0) {
 		// Le temps ecoule sans avoir recu une proposition
 		fprintf(stderr, "Yo tout le monde, la phase de reflexion is over.\n");
-
 		
 	} else {
 		// Un client a propose une solution
 		fprintf(stderr, "Un client annonce avoir trouve une solution.\n");
+		pthread_mutex_lock(&mutex_data_ref);
+		scom = scom_ref;
+		strcpy(username, username_ref);
+		coups = coups_ref;
+		pthread_mutex_unlock(&mutex_data_ref);
 		// TUASTROUVE/ (S -> C)
 		send(scom, "TUASTROUVE/\n", 13, 0);
-		send_il_a_trouve(scom, username);
+		send_il_a_trouve(scom, username, coups);
 	}	
-
 	
 	return 0;
 }
@@ -411,24 +437,6 @@ void disconnect_if_connected(int scom) {
 	}
 }
 
-void send_il_a_trouve(int scom, char* username, int coups) {
-	User* tmp;
-	char msg[70];
-	sprintf(msg, "ILATROUVE/%s/%d/\n", username, coups);
-
-	pthread_mutex_lock (&mutex_init); 
-	tmp = init->user;
-	while(tmp != NULL) {
-		// ILATROUVE/user/coups/ (S -> C)
-		if(tmp->scom != scom) {
-			
-			send(tmp->scom, msg, strlen(msg)+1, 0);
-		}
-		tmp = tmp->next;
-	}
-	pthread_mutex_unlock (&mutex_init); 
-}
-
 /*
  * Traite un client lorsqu'un client annonce avoir trouve une solution.
  */
@@ -448,6 +456,7 @@ void client_trouve(int scom, char *buff) {
 			pthread_mutex_lock (&mutex_data_ref); 
 			strcpy(username_ref, username);
 			coups_ref = coups;
+			scom_ref = scom;
 			pthread_mutex_unlock(&mutex_data_ref); 
 
 			kill(main_pid, SIGALRM);
