@@ -3,6 +3,10 @@
 int	USERS_CPT 		= 0;
 int	SESSIONS_CPT 	= 0;
 
+/*
+ * Hello, to save you time, this part contains nothing interesting,
+ * just some functions to handle lists and sessions.
+ */
 User *create_user(char *username, int scom) {
 	User *user = malloc(sizeof(User));
 	if(user == NULL) return NULL;
@@ -160,7 +164,9 @@ void	affiche_sessions(Session *head) {
 
 
 /*********************** Code de la partie serveur ***************************/
-
+/*
+ * Self explanatory function.
+ */
 int decode_header(char *str) {
 	if(strncmp("CONNEX/", str, strlen("CONNEX/")) == 0)
 		return 1;
@@ -175,7 +181,10 @@ int decode_header(char *str) {
 	return 0;
 }
 
-
+/*
+ * Look for a user with a socket of communication equals scom inside session.
+ * return user if there is one, NULL otherwise.
+ */
 User* cherche_user(Session* session, int scom) {
 	User *tmp = session->user;;
 
@@ -188,6 +197,10 @@ User* cherche_user(Session* session, int scom) {
 	return NULL;
 }
 
+/*
+ * Decode buff information and writes the name of the user in username.
+ * return 0 if everything is fine -1 otherwise.
+ */
 int get_username(char* buff, char* username) {
 	unsigned int i = 0, j = 0;
 	unsigned int size = strlen(buff);
@@ -209,6 +222,11 @@ int get_username(char* buff, char* username) {
 	return 0;
 }
 
+/*
+ * Decode buff information and writes the name of the user in username
+ * and number of steps on the location pointed by coups.
+ * return 0 if everything is fine -1 otherwise.
+ */
 int get_username_and_coups(char* buff, char* username, int* coups) {
 	unsigned int i = 0, j = 0;
 	unsigned int size = strlen(buff);
@@ -232,6 +250,9 @@ int get_username_and_coups(char* buff, char* username, int* coups) {
 	return 0;
 }
 
+/*
+ * Free a session content.
+ */
 void vider_session(Session *joining) {
 	User *user = joining->user;
 	User *tmp;
@@ -240,4 +261,13 @@ void vider_session(Session *joining) {
 		user = user->next;
 		free(tmp);
 	}
+}
+
+/*
+ * Try to grow the size of old and concatenate it with to_add.
+ */
+char* grow_char(char* old, char* to_add) {
+	old = realloc(old, strlen(old) + strlen(to_add) + 1);
+	strcat(old, to_add);
+	return old;
 }

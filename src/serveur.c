@@ -74,6 +74,7 @@ void handler_resolution(int sig) {
 void send_enigme_and_bilan() {
 	User *tmp, *user;
 	char buff[50], *temp;
+	temp = malloc(sizeof(char)*50);
 
 	pthread_mutex_lock (&mutex_init); 
 	tmp = init->user;
@@ -127,6 +128,7 @@ int reflexion() {
 	sigemptyset(&action.sa_mask); 
 	action.sa_flags = 0; 
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
+	sigaction(SIGINT, &action, (struct sigaction *) 0);
 	itv.it_value.tv_sec = TEMPS_REFLEXION;
 	itv.it_value.tv_usec = 0; 
 
@@ -158,8 +160,9 @@ int reflexion() {
 		strcpy(username, username_ref);
 		coups = coups_ref;
 		pthread_mutex_unlock(&mutex_data_ref);
-		// TUASTROUVE/ (S -> C)
+		// TUASTROUVE/	(S -> C)
 		send(scom, "TUASTROUVE/\n", 13, 0);
+		// ILATROUVE/user/coups/	(S -> C)
 		send_il_a_trouve(scom, username, coups);
 	}	
 	
@@ -469,7 +472,15 @@ void client_trouve(int scom, char *buff) {
  * Traite un client lorsqu'un client lorsqu'il enchere.
  */
 void client_enchere(int scom, char *buff) {
-	
+	char username[50];
+	int coups;
+
+	if(get_username_and_coups(buff, username, &coups) == -1) {
+		fprintf(stderr, "[Seveur] Commande client inconnue: %s, count: %d\n", buff, (int)strlen(buff));
+		send(scom, "Commande client inconnue.\n", 28, 0);
+	} else {
+
+	}
 }
 
 /*

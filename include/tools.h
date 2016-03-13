@@ -68,6 +68,7 @@ Session* 	delete_session(Session *del, Session *list);
 void 		affiche_session(Session *session);
 void		affiche_sessions(Session *head);
 
+char*		grow_char(char* old, char* to_add);
 int 		decode_header(char *str);
 User*		cherche_user(Session *session, int scom);
 int 		get_username(char *buff, char *username);
