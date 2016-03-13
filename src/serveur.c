@@ -349,6 +349,10 @@ int send_to_all(int scom, char *name) {
 	return 0;
 }
 
+int send_il_enchere(char* username, int scom, int coups) {
+
+}
+
 /*
  * Gere la commande de connexion d'un client.
  */
@@ -526,20 +530,15 @@ void client_enchere(int scom, char* buff) {
 				// TUENCHERE/	(S -> C)
 				send(scom, "TUENCHERE/\n", 12, 0);
 				// ILENCHERE/user/coups/	(S -> C)
-				send_il_enchere(user->username, coups);
+				send_il_enchere(user->username, scom, coups);
 			} else {
 				// ECHECENCHERE/user/	(S -> C)
 				sprintf(tmp, "ECHECENCHERE/%s/\n", user->username);
 				send(scom, tmp, strlen(tmp)+1, 0);
 			}
 		}
-
 		pthread_mutex_unlock(&mutex_data_sol);
-		// 
 		pthread_mutex_unlock(&mutex_init);
-
-		
-		
 	}
 }
 
