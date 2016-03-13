@@ -250,6 +250,13 @@ void go() {
 	while(1) {
 		/* Rajouter les utilisateurs qui attendent */
 		int size = 0;
+		pthread_mutex_lock(&mutex_data_sol);
+		coups_actif = -1;
+		pthread_mutex_unlock(&mutex_data_sol);
+		pthread_mutex_lock(&mutex_data_ref);
+		coups_ref = -1;
+		pthread_mutex_unlock(&mutex_data_ref);
+
 		pthread_mutex_lock (&mutex_joining);
 		pthread_mutex_lock (&mutex_init);
 		User *user = joining->user;
@@ -261,6 +268,13 @@ void go() {
 		size = init->size;
 		// Liberer les donnees de la liste joining.
 		vider_session(joining);
+
+		user = init->user;
+		// Reinitialiser l'enchere pour le nouveau tour.
+		while(user != NULL) {
+			user->coups = -1;
+			user = user->next;
+		}
 		pthread_mutex_unlock (&mutex_init);
 		pthread_mutex_unlock (&mutex_joining);
 
@@ -472,7 +486,10 @@ void client_trouve(int scom, char *buff) {
 				strcpy(username_ref, username);
 				coups_ref = coups;
 				scom_ref = scom;
-				pthread_mutex_unlock(&mutex_data_ref); 
+				pthread_mutex_unlock(&mutex_data_ref);
+				pthread_mutex_lock(&mutex_data_sol);
+				coups_actif = coups;
+				pthread_mutex_unlock(&mutex_data_sol);
 
 				kill(main_pid, SIGALRM);
 			}
@@ -487,8 +504,9 @@ void client_trouve(int scom, char *buff) {
  * Traite un client lorsqu'un client lorsqu'il enchere.
  */
 void client_enchere(int scom, char* buff) {
-	char username[50];
+	char username[50], tmp[65];
 	int coups;
+	User* user;
 
 	if(get_username_and_coups(buff, username, &coups) == -1) {
 		fprintf(stderr, "[Seveur] Commande client inconnue: %s, count: %d\n", buff, (int)strlen(buff));
@@ -496,6 +514,32 @@ void client_enchere(int scom, char* buff) {
 	} else {
 		fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
 
+		pthread_mutex_lock(&mutex_init);
+		pthread_mutex_lock(&mutex_data_sol);
+		user = cherche_user(init, scom);
+		if(coups < coups_actif) {
+			user->coups = coups;
+			coups_actif = coups;
+		} else {
+			if(coups < user->coups) {
+				user->coups = coups;
+				// TUENCHERE/	(S -> C)
+				send(scom, "TUENCHERE/\n", 12, 0);
+				// ILENCHERE/user/coups/	(S -> C)
+				send_il_enchere(user->username, coups);
+			} else {
+				// ECHECENCHERE/user/	(S -> C)
+				sprintf(tmp, "ECHECENCHERE/%s/\n", user->username);
+				send(scom, tmp, strlen(tmp)+1, 0);
+			}
+		}
+
+		pthread_mutex_unlock(&mutex_data_sol);
+		// 
+		pthread_mutex_unlock(&mutex_init);
+
+		
+		
 	}
 }
 
@@ -585,6 +629,8 @@ int main() {
 	init = create_session(0);
 	joining = create_session(0);
 	session_started = 0;
+	coups_actif = -1;
+	coups_ref = -1;
 	pthread_mutex_lock(&mutex_phase); 
 	phase = UNDEF;
 	pthread_mutex_unlock(&mutex_phase);

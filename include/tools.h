@@ -18,7 +18,7 @@
 #define		SCORE_OBJ			100
 
 #define		TEMPS_REFLEXION		300		/* secondes */
-#define		TEMPS_ENCHERES		30		/* secondes */
+#define		TEMPS_ENCHERE		30		/* secondes */
 #define		TEMPS_RESOLUTION	60		/* secondes */
 
 #define		SERVER_PORT			2016
