@@ -288,7 +288,6 @@ void fin_reflexion() {
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock(&mutex_init);
-
 }
 
 void go() {
@@ -618,7 +617,7 @@ void client_resolution(int scom, char* buff) {
 	} else {
 		fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
 		// SASOLUTION/user/deplacements/	(S -> C)
-		
+
 	}
 }
 
@@ -677,7 +676,6 @@ void* handle_client(void* arg) {
 
 
 int main() {
-	
 	int scom, fromlen, *pt_scom;
 	struct sockaddr_in sin, exp;
 	pthread_t conn_id;
@@ -721,7 +719,6 @@ int main() {
 	}
 
 	close(sock);
-	
 
 	/*User *user = create_user("toto");
 	User *user2 = create_user("titi");

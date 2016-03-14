@@ -153,14 +153,14 @@ void affiche_session(Session *session) {
 
 void affiche_sessions(Session *head) {
 	Session *tmp = head;
-	printf("/******************* Toutes les sessions: ***************/\n");
+	fprintf(stderr, "/******************* Toutes les sessions: ***************/\n");
 	
 	while(tmp != NULL) {
 		affiche_session(tmp);
 		tmp = tmp->next;
 	}
 
-	printf("/********************************************************/\n");
+	fprintf(stderr, "/********************************************************/\n");
 }
 
 
@@ -281,6 +281,7 @@ int get_username_and_deplacements(char* buff, char* username, char* deplacements
 void vider_session(Session *joining) {
 	User *user = joining->user;
 	User *tmp;
+	
 	while(user != NULL) {
 		tmp = delete_user(user, joining);
 		user = user->next;
