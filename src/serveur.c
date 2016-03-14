@@ -350,7 +350,21 @@ int send_to_all(int scom, char *name) {
 }
 
 int send_il_enchere(char* username, int scom, int coups) {
-
+	User *tmp;
+	char msg[100];
+	pthread_mutex_lock (&mutex_init); 
+	tmp = init->user;
+	sprintf(msg, "ILENCHERE/%s/%d/\n", username, coups);
+	while(tmp != NULL) {
+		// Notifier les clients de l'enchere du client
+		if(tmp->scom != scom) {
+			
+			send(tmp->scom, msg, strlen(msg)+1, 0);
+		}
+		tmp = tmp->next;
+	}
+	pthread_mutex_unlock (&mutex_init);
+	return 0;
 }
 
 /*
@@ -494,7 +508,7 @@ void client_trouve(int scom, char *buff) {
 				pthread_mutex_lock(&mutex_data_sol);
 				coups_actif = coups;
 				pthread_mutex_unlock(&mutex_data_sol);
-
+				// Notifier le thread main de la terminaison 
 				kill(main_pid, SIGALRM);
 			}
 		} else {
