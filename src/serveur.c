@@ -59,18 +59,18 @@ void handler_reflexion(int sig) {
  * Handler de signal pour indiquer la fin de la phase des encheres.
  */
 void handler_encheres(int sig) {
-	/* Reveiller le serveur (fin de la phase de reflexion) */
+	/* Reveil de serveur (fin de la phase des encheres) */
 	sig++;
-	fprintf(stderr, "Yay j'ai recu handler enchere\n");
+	fprintf(stderr, "Yay j'ai recu handler enchere.\n");
 }
 
 /*
  * Handler de signal pour indiquer la fin de la phase de resolution.
  */
 void handler_resolution(int sig) {
-	/* Reveiller le serveur (fin de la phase de reflexion) */
+	/* Reveil du serveur (fin de la phase de resolution) */
 	sig++;
-	fprintf(stderr, "Yay j'ai recu handler resolution\n");
+	fprintf(stderr, "Yay j'ai recu handler resolution.\n");
 }
 
 
@@ -200,7 +200,7 @@ int reflexion() {
 }
 
 /*
- * Phase d'enche res.
+ * Phase d'encheres.
  */
 int enchere() {
 	sigset_t set;
@@ -210,7 +210,6 @@ int enchere() {
 	sigemptyset(&action.sa_mask); 
 	action.sa_flags = 0; 
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
-	sigaction(SIGINT, &action, (struct sigaction *) 0);
 	itv.it_value.tv_sec = TEMPS_ENCHERE;
 	itv.it_value.tv_usec = 0; 
 
@@ -357,8 +356,6 @@ void go() {
 
 		/* Phase de resolution */
 		resolution();
-
-		
 	}
 }
 
@@ -399,9 +396,10 @@ int send_to_all(int scom, char *name) {
 /*
  * Envoie a tous les clients l'enchere d'un nouveau client.
  */
-int send_il_enchere(char* username, int scom, int coups) {
+void send_il_enchere(char* username, int scom, int coups) {
 	User *tmp;
 	char msg[100];
+
 	pthread_mutex_lock (&mutex_init); 
 	tmp = init->user;
 	sprintf(msg, "ILENCHERE/%s/%d/\n", username, coups);
@@ -412,7 +410,6 @@ int send_il_enchere(char* username, int scom, int coups) {
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init);
-	return 0;
 }
 
 /*
@@ -423,7 +420,7 @@ int connexion(int scom, char* buff) {
 	char *name, msg[100];
 	User *user = NULL;
 
-	name = calloc(50, sizeof(char) );
+	name = calloc(50, sizeof(char));
 
 	if(size < 8) {
 		fprintf(stderr, "[Serveur] Yo client i don't this command: '%s' (is it in the protocol ?)\n", buff);
@@ -492,8 +489,6 @@ int deconnexion(int scom, char* buff) {
 		// Logique pour supprimer user de joining s'il y est bien sur.
 		delete_user(user, joining);
 	}	
-	
-
 
 	fprintf(stderr, "[Serveur] Fin deconnexion.\n");
 	return 0;	
@@ -563,7 +558,6 @@ void client_trouve(int scom, char *buff) {
 			pthread_mutex_unlock(&mutex_init);
 		}
 	}
-		
 }
 
 /*
@@ -616,7 +610,6 @@ void client_resolution(int scom, char* buff) {
 	pthread_mutex_lock(&mutex_data_sol);
 	coups = coups_actif;
 	pthread_mutex_unlock(&mutex_data_sol);
-
 	deplacements = malloc(sizeof(char)*(coups+1));
 
 	if(get_username_and_deplacements(buff, username, deplacements, coups) == -1) {
@@ -624,6 +617,7 @@ void client_resolution(int scom, char* buff) {
 		send(scom, "Commande client inconnue.\n", 28, 0);
 	} else {
 		fprintf(stderr, "[Serveur] Cool command: %s\n", buff);
+		// SASOLUTION/user/deplacements/	(S -> C)
 		
 	}
 }
