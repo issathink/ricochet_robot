@@ -28,6 +28,7 @@ char	username_ref[50];
 
 int 	scom_actif;
 int 	coups_actif;
+char	username_actif[50];
 
 /*
  * Handler de signal pour indiquer la fin de la phase de reflexion.
@@ -121,6 +122,30 @@ void send_il_a_trouve(int scom, char* username, int coups) {
 }
 
 /*
+ * Notification de la fin de la phase des encheres.
+ */
+void send_fin_enchere() {
+	User* tmp;
+	int scom;
+	char msg[70];
+
+	pthread_mutex_lock(&mutex_data_sol);
+	scom = scom_actif;
+	sprintf(msg, "FINENCHERE/%s/%d/\n", username_actif, coups_actif);
+	pthread_mutex_lock(&mutex_data_sol);
+
+	pthread_mutex_lock (&mutex_init); 
+	tmp = init->user;
+	while(tmp != NULL) {
+		if(tmp->scom != scom) 
+			send(tmp->scom, msg, strlen(msg)+1, 0);
+		tmp = tmp->next;
+	}
+	pthread_mutex_unlock (&mutex_init);
+}
+
+
+/*
  * Phase de reflexion.
  */
 int reflexion() {	
@@ -178,8 +203,30 @@ int reflexion() {
  * Phase d'enche res.
  */
 int enchere() {
+	sigset_t set;
+	struct itimerval itv; 
+	struct sigaction action;
+	action.sa_handler = handler_encheres; 
+	sigemptyset(&action.sa_mask); 
+	action.sa_flags = 0; 
+	sigaction(SIGALRM, &action, (struct sigaction *) 0);
+	sigaction(SIGINT, &action, (struct sigaction *) 0);
+	itv.it_value.tv_sec = TEMPS_ENCHERE;
+	itv.it_value.tv_usec = 0; 
+
+	setitimer(ITIMER_REAL, &itv, (struct itimerval *)0);
+	sigfillset(&set);
+	sigdelset(&set, SIGINT);
+	sigdelset(&set, SIGALRM);
+	sigsuspend(&set);
+
+	pthread_mutex_lock(&mutex_phase); 
+	phase = RESOLUTION;
+	pthread_mutex_unlock(&mutex_phase);
 	
-	 
+	// FINENCHERE/user/coups/	(S -> C)
+	send_fin_enchere();
+
 	return 0;
 }
 
@@ -349,6 +396,9 @@ int send_to_all(int scom, char *name) {
 	return 0;
 }
 
+/*
+ * Envoie a tous les clients l'enchere d'un nouveau client.
+ */
 int send_il_enchere(char* username, int scom, int coups) {
 	User *tmp;
 	char msg[100];
@@ -357,10 +407,8 @@ int send_il_enchere(char* username, int scom, int coups) {
 	sprintf(msg, "ILENCHERE/%s/%d/\n", username, coups);
 	while(tmp != NULL) {
 		// Notifier les clients de l'enchere du client
-		if(tmp->scom != scom) {
-			
+		if(tmp->scom != scom)
 			send(tmp->scom, msg, strlen(msg)+1, 0);
-		}
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init);
@@ -538,6 +586,8 @@ void client_enchere(int scom, char* buff) {
 		if(coups < coups_actif) {
 			user->coups = coups;
 			coups_actif = coups;
+			scom_actif = scom;
+			strcpy(username_actif, username);
 		} else {
 			if(coups < user->coups) {
 				user->coups = coups;
