@@ -6,15 +6,15 @@ int 	session_started;
 
 pthread_mutex_t mutex_init = 		PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_joining = 	PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_phase = 		PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_phase = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_nb_tour = 	PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_is_timeout = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_is_timeout = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_ref = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_enc = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_sol = 	PTHREAD_MUTEX_INITIALIZER;
 
-int 	sock;
-int 	nb_tour = 1;
+int 		sock;
+int 		nb_tour = 1;
 PHASE 	phase;
 pid_t 	main_pid;
 
@@ -151,7 +151,7 @@ int reflexion() {
 	
 	pthread_mutex_lock(&mutex_is_timeout);
 	over = is_timeout_ref;
-    pthread_mutex_unlock(&mutex_is_timeout);
+    	pthread_mutex_unlock(&mutex_is_timeout);
 	
 	if(over == 0) {
 		// Le temps ecoule sans avoir recu une proposition
