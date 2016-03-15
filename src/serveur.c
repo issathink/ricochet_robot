@@ -496,7 +496,6 @@ int connexion(int scom, char* buff) {
 	int size = strlen(buff);
 	char *name, msg[100];
 	User *user = NULL;
-
 	name = calloc(50, sizeof(char));
 
 	if(size < 8) {
