@@ -619,8 +619,8 @@ void client_trouve(int scom, char *buff) {
 			pthread_mutex_unlock(&mutex_init);
 			pthread_mutex_lock(&mutex_phase);
 			if(phase == REFLEXION) {
-				pthread_mutex_lock(&mutex_phase); 
 				phase = ENCHERE;
+				pthread_mutex_unlock(&mutex_phase); 
 				pthread_mutex_lock (&mutex_data_ref); 
 				strcpy(username_ref, username);
 				coups_ref = coups;
@@ -633,9 +633,13 @@ void client_trouve(int scom, char *buff) {
 				pthread_mutex_unlock(&mutex_data_sol);
 				// Notifier le thread main de la terminaison 
 				kill(main_pid, SIGALRM);
+			} else {
+				pthread_mutex_unlock(&mutex_phase); 
+			send(scom, "Commande client inconnue.\n", 28, 0);
 			}
 		} else {
-			pthread_mutex_unlock(&mutex_init);
+			pthread_mutex_unlock(&mutex_init);		
+			send(scom, "Commande client inconnue.\n", 28, 0);
 		}
 	}
 }
@@ -704,6 +708,7 @@ void client_resolution(int scom, char* buff) {
 			send_bonne_solution();
 		} else {
 			// MAUVAISE/user/	(S -> C)
+			// Rechercher le prochain utilisateur dans la liste des parieurs
 			send_mauvaise(username);
 		}
 	}
