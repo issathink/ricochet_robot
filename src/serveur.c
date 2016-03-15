@@ -233,9 +233,9 @@ int enchere() {
  * Etape de la resolution d'un tour de l'enigme.
  */
 int resolution() {
-	pthread_mutex_lock(&mutex_phase); 
-	phase = RESOLUTION;
-	pthread_mutex_unlock(&mutex_phase);
+	// pthread_mutex_lock(&mutex_phase); 
+	// phase = RESOLUTION;
+	// pthread_mutex_unlock(&mutex_phase);
 
 	return 0;
 }
@@ -549,6 +549,8 @@ void client_trouve(int scom, char *buff) {
 				pthread_mutex_unlock(&mutex_data_ref);
 				pthread_mutex_lock(&mutex_data_sol);
 				coups_actif = coups;
+				scom_actif = scom;
+				strcpy(username_actif, username);
 				pthread_mutex_unlock(&mutex_data_sol);
 				// Notifier le thread main de la terminaison 
 				kill(main_pid, SIGALRM);
