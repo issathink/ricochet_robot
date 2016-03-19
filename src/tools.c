@@ -28,6 +28,9 @@ int add_user(User *user, Session *session) {
 	Session *tmp = session;
 	User *_user = session->user;	
 
+	if(user == NULL || session == NULL)
+		return -1;
+
 	if(tmp->size == 0) {
 		tmp->user = user;
 		tmp->size++;
@@ -49,7 +52,8 @@ User* delete_user(User *user, Session *session) {
 	Session *tmp = session;
 	User* _user, *head = session->user;
 
-	if(session->size == 0) return NULL;
+	if(session->size == 0 || user == NULL || session == NULL) 
+		return NULL;
 	
 	if(tmp->user->id == user->id) {
 		session->user = session->user->next;
@@ -81,6 +85,8 @@ void affiche_user(User *user) {
 
 Enchere* create_enchere(int scom, int mise) {
 	Enchere* enchere = malloc(sizeof(Enchere));
+	if(enchere == NULL)
+		return NULL;
 	enchere->scom = scom;
 	enchere->mise = mise;
 	return enchere;
@@ -89,7 +95,7 @@ Enchere* create_enchere(int scom, int mise) {
 int add_enchere(Enchere *enchere, Enchere *init) {
 	Enchere* tmp = init;
 
-	if(enchere == NULL)
+	if(enchere == NULL || init == NULL)
 		return -1;
 
 	while(tmp->next != NULL)
@@ -100,6 +106,8 @@ int add_enchere(Enchere *enchere, Enchere *init) {
 
 Enchere* delete_enchere(Enchere* enchere, Enchere* init) {
 	Enchere* tmp, *_ench;
+
+	if(init == NULL || enchere == NULL) return NULL; 
 
 	if(init->next == NULL && init->scom == enchere->scom)
 		return init;
