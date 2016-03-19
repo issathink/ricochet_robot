@@ -79,6 +79,76 @@ void affiche_user(User *user) {
 		printf("  [User] ID: %d, name: %s, score: %d\n", user->id, user->username, user->score);
 }
 
+Enchere* create_enchere(int scom, int mise) {
+	Enchere* enchere = malloc(sizeof(Enchere));
+	enchere->scom = scom;
+	enchere->mise = mise;
+	return enchere;
+}
+
+int add_enchere(Enchere *enchere, Enchere *init) {
+	Enchere* tmp = init;
+
+	if(enchere == NULL)
+		return -1;
+
+	while(tmp->next != NULL)
+		tmp = tmp->next;
+	tmp = enchere;
+	return 0;
+}
+
+Enchere* delete_enchere(Enchere* enchere, Enchere* init) {
+	Enchere* tmp, *_ench;
+
+	if(init->next == NULL && init->scom == enchere->scom)
+		return init;
+	if(init->next == NULL)
+		return NULL;
+
+	if(init->scom == enchere->scom) {
+		tmp = init;
+		init = init->next;
+		return init;
+	}
+
+	tmp = init->next;
+	_ench = init;
+	while(tmp != NULL) {
+		if(tmp->scom == enchere->scom) {
+			_ench->next = tmp->next;
+			return tmp;
+		}
+
+		_ench = tmp;
+		tmp = tmp->next;
+	}
+
+	return NULL;
+}
+
+/*
+ * Retourne le moins offrant et le supprime de la liste des encheres.
+ */
+Enchere* getLeMoinsOffrant(Enchere *init) {
+	Enchere* tmp = init, *ench;
+
+
+	if(init == NULL)
+		return NULL;
+
+	ench = tmp;
+
+	while(tmp != NULL) {
+		if(ench->mise > tmp->mise) {
+			ench = tmp;
+		}
+	}
+
+	return delete_enchere(ench, init);
+}
+
+
 Session* create_session(int countdown) {
 	Session* session = malloc(sizeof(Session));
 	

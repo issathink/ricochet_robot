@@ -37,6 +37,13 @@ typedef struct _user {
 	struct _user*		next;
 } User;
 
+
+typedef struct _enchere {
+	int 				scom;
+	int 				mise;
+	struct _enchere*	next;
+} Enchere;
+
 /* Plateau du jeu (d'une session) */
 typedef struct _plateau {
 	int				cases[NB_CASES][NB_CASES];
@@ -61,6 +68,11 @@ User*		create_user(char *username, int scom);
 int 			add_user(User *user, Session *session);
 User*		delete_user(User *user, Session *session);
 void 		affiche_user(User *user);
+
+Enchere* 	create_enchere(int scom, int mise);
+int 			add_enchere(Enchere *enchere, Enchere *init);
+Enchere*	delete_enchere(Enchere* enchere, Enchere* init);
+
 
 /* Manipulation des sessions */
 Session*		create_session();
