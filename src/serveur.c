@@ -329,6 +329,7 @@ void go() {
 		size = init->size;
 		// Liberer les donnees de la liste joining.
 		vider_session(joining);
+		vider_enchere(init_enchere);
 
 		user = init->user;
 		// Reinitialiser l'enchere pour le nouveau tour.
@@ -338,6 +339,8 @@ void go() {
 		}
 		pthread_mutex_unlock (&mutex_init);
 		pthread_mutex_unlock (&mutex_joining);
+
+
 
 		pthread_mutex_lock(&mutex_is_timeout); 
 		is_timeout_ref = 0;
@@ -676,6 +679,10 @@ void client_enchere(int scom, char* buff) {
 			scom_actif = scom;
 			strcpy(username_actif, username);
 			enchere = create_enchere(scom, coups);
+			if(enchere != NULL) {
+				add_enchere(enchere, init_enchere);
+			} else
+				return;
 		} else {
 			if(coups < user->coups) {
 				user->coups = coups;

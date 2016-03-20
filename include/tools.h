@@ -74,6 +74,7 @@ Enchere* 	create_enchere(int scom, int mise);
 int 			add_enchere(Enchere *enchere, Enchere *init);
 Enchere*	delete_enchere(Enchere* enchere, Enchere* init);
 void		free_enchere(Enchere* enchere);
+void		vider_enchere(Enchere* init);
 
 
 /* Manipulation des sessions */

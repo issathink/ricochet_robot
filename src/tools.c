@@ -378,11 +378,30 @@ int get_username_and_deplacements(char* buff, char* username, char* deplacements
 void vider_session(Session *joining) {
 	User *user = joining->user;
 	User *tmp;
+
+	if(joining == NULL)
+		return;
 	
 	while(user != NULL) {
 		tmp = delete_user(user, joining);
 		user = user->next;
-		free(tmp);
+		free_user(tmp);
+	}
+}
+
+/*
+ * Free all bids of previous round.
+ */
+void vider_enchere(Enchere* init) {
+	Enchere *ench = init;
+	Enchere *tmp;
+	if(init == NULL)
+		return;
+
+	while(ench != NULL) {
+		tmp = ench;
+		ench = ench->next;
+		free_enchere(tmp);
 	}
 }
 
