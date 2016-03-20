@@ -6,6 +6,7 @@ int	SESSIONS_CPT 	= 0;
 /*
  * Hello, to save you time, this part contains nothing interesting,
  * just some functions to handle lists and sessions.
+ * If you want to debug then go ahead.
  */
 User *create_user(char *username, int scom) {
 	User *user = malloc(sizeof(User));
@@ -83,6 +84,14 @@ void affiche_user(User *user) {
 		printf("  [User] ID: %d, name: %s, score: %d\n", user->id, user->username, user->score);
 }
 
+void free_user(User* user) {
+	if(user == NULL)
+		return;
+
+	free(user->username);
+	free(user);
+}
+
 Enchere* create_enchere(int scom, int mise) {
 	Enchere* enchere = malloc(sizeof(Enchere));
 	if(enchere == NULL)
@@ -95,8 +104,13 @@ Enchere* create_enchere(int scom, int mise) {
 int add_enchere(Enchere *enchere, Enchere *init) {
 	Enchere* tmp = init;
 
-	if(enchere == NULL || init == NULL)
+	if(enchere == NULL)
 		return -1;
+
+	if(init == NULL) {
+		init = enchere;
+		return 0;
+	}
 
 	while(tmp->next != NULL)
 		tmp = tmp->next;
@@ -133,6 +147,11 @@ Enchere* delete_enchere(Enchere* enchere, Enchere* init) {
 	}
 
 	return NULL;
+}
+
+void free_enchere(Enchere* enchere) {
+	if(enchere != NULL)
+		free(enchere);
 }
 
 /*

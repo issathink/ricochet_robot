@@ -68,10 +68,12 @@ User*		create_user(char *username, int scom);
 int 			add_user(User *user, Session *session);
 User*		delete_user(User *user, Session *session);
 void 		affiche_user(User *user);
+void		free_user(User* user);
 
 Enchere* 	create_enchere(int scom, int mise);
 int 			add_enchere(Enchere *enchere, Enchere *init);
 Enchere*	delete_enchere(Enchere* enchere, Enchere* init);
+void		free_enchere(Enchere* enchere);
 
 
 /* Manipulation des sessions */

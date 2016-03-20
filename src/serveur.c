@@ -28,6 +28,7 @@ char		username_ref[50];
 
 int 		scom_actif;
 int 		coups_actif;
+Enchere*	init_enchere;
 char		username_actif[50];
 
 /*
@@ -651,7 +652,15 @@ void client_enchere(int scom, char* buff) {
 	char username[50], tmp[65];
 	int coups;
 	User* user;
+	Enchere* enchere;
 
+	pthread_mutex_lock(&mutex_phase);
+	if(phase != ENCHERE) {
+		pthread_mutex_unlock(&mutex_phase);
+		return;
+	}
+
+	pthread_mutex_unlock(&mutex_phase);
 	if(get_username_and_coups(buff, username, &coups) == -1) {
 		fprintf(stderr, "[Seveur] Commande client inconnue: %s, count: %d\n", buff, (int)strlen(buff));
 		send(scom, "Commande client inconnue.\n", 28, 0);
@@ -666,9 +675,15 @@ void client_enchere(int scom, char* buff) {
 			coups_actif = coups;
 			scom_actif = scom;
 			strcpy(username_actif, username);
+			enchere = create_enchere(scom, coups);
 		} else {
 			if(coups < user->coups) {
 				user->coups = coups;
+				enchere = create_enchere(scom, coups);
+				if(enchere != NULL) {
+					add_enchere(enchere, init_enchere);
+				} else
+					return;
 				// TUENCHERE/	(S -> C)
 				send(scom, "TUENCHERE/\n", 12, 0);
 				// ILENCHERE/user/coups/	(S -> C)
@@ -682,6 +697,7 @@ void client_enchere(int scom, char* buff) {
 		pthread_mutex_unlock(&mutex_data_sol);
 		pthread_mutex_unlock(&mutex_init);
 	}
+	pthread_mutex_unlock(&mutex_phase);
 }
 
 /*
