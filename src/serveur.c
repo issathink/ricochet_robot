@@ -82,7 +82,7 @@ void handler_resolution(int sig) {
  */
 void send_enigme_and_bilan() {
 	User *tmp, *user;
-	char buff[50], *temp;
+	char buff[100], *temp;
 	temp = malloc(sizeof(char)*50);
 
 	pthread_mutex_lock (&mutex_init); 
@@ -97,7 +97,7 @@ void send_enigme_and_bilan() {
 			user = user->next;
 			// Faire la chaine qui contiendra le score et le nom de tous les utilisateurs
 		}	
-		send(user->scom, buff, strlen(buff)+1, 0);
+		send(tmp->scom, buff, strlen(buff), 0);
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init); 
@@ -155,15 +155,17 @@ int reflexion() {
 	struct itimerval itv; 
 	struct sigaction action;
 	action.sa_handler = handler_reflexion; 
-	sigemptyset(&action.sa_mask); 
+	// sigemptyset(&action.sa_mask); 
 	action.sa_flags = 0; 
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
 	sigaction(SIGINT, &action, (struct sigaction *) 0);
 	itv.it_value.tv_sec = TEMPS_REFLEXION;
 	itv.it_value.tv_usec = 0; 
 
+	fprintf(stderr, "Xo: Before send_enigme_and_bilan\n");
 	// Informer tout le monde du lancement de la phase de reflexion
 	send_enigme_and_bilan();
+	fprintf(stderr, "Xo: After send_enigme_and_bilan\n");
 	pthread_mutex_lock(&mutex_phase); 
 	phase = REFLEXION;
 	pthread_mutex_unlock(&mutex_phase);
@@ -172,6 +174,7 @@ int reflexion() {
 	sigfillset(&set);
 	sigdelset(&set, SIGINT);
 	sigdelset(&set, SIGALRM);
+	fprintf(stderr, "Xo: Before sigsuspend\n");
 	sigsuspend(&set);
 	
 	pthread_mutex_lock(&mutex_is_timeout);
@@ -376,10 +379,6 @@ void go() {
 		is_timeout_ref = 0;
 		pthread_mutex_unlock(&mutex_is_timeout);
 
-		if(size < 2) {
-			
-		} 
-
 		is_playing = 1;
 		fprintf(stderr, "Starting...in 10sec\n");
 		sleep(10);
@@ -392,6 +391,7 @@ void go() {
 		start_session();
 		
 		/* Phase de reflexion */
+		fprintf(stderr, "Before reflexion\n");
 		reflexion();
 
 		fin_reflexion();
@@ -557,19 +557,13 @@ int connexion(int scom, char* buff) {
 	pthread_cond_signal (&cond_session); 
 	pthread_mutex_unlock (&mutex_cond); 
 
-
-
 	pthread_mutex_lock (&mutex_joining);
 	add_user(user, joining);
-	pthread_mutex_unlock (&mutex_joining);
-	
-		
+	pthread_mutex_unlock (&mutex_joining);		
 
 	// BIENVENUE/user/	(S -> C)
 	sprintf(msg, "BIENVENUE/%s/\n", name);
 	send(scom, msg, strlen(msg)+1, 0);
-
-	fprintf(stderr, "Xo: %s\n", name);
 
 	// fprintf(stderr, "CONEXION: command: %s\n", buff);
 
