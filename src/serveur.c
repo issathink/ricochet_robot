@@ -9,9 +9,12 @@ pthread_mutex_t mutex_is_timeout = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_ref = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_enc = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_sol = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_cond = 		PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond_session = 		PTHREAD_COND_INITIALIZER; 
 
 Session 	*init, *joining;
 int 		session_started;
+int		is_playing;
 
 int 		sock;
 int 		nb_tour = 1;
@@ -28,7 +31,7 @@ char		username_ref[50];
 
 int 		scom_actif;
 int 		coups_actif;
-Enchere*	init_enchere;
+Enchere* init_enchere;
 char		username_actif[50];
 
 /*
@@ -263,8 +266,8 @@ void end_session() {
     	pthread_mutex_lock (&mutex_init);
     	tmp = init->user;
     	while(tmp != NULL) {
-        	sprintf(buff, "FINRESO/%s/\n", tmp->username);
-        	send(tmp->scom, buff, strlen(buff), 0);
+        	// sprintf(buff, "FINRESO/%s/\n", tmp->username);
+        	// send(tmp->scom, buff, strlen(buff), 0);
         	user = tmp;
 		tmp = tmp->next;
 		delete_user(user, init);
@@ -306,20 +309,22 @@ void fin_reflexion() {
 	pthread_mutex_unlock(&mutex_init);
 }
 
-void go() {
-    /* Chaque tour de boucle constitue un Tour de jeu si une session a commence. */
+void* go(void *arg) {
+    	arg++;
+	/* Chaque tour de boucle constitue un Tour de jeu si une session a commence. */
 	while(1) {
 		/* Rajouter les utilisateurs qui attendent */
 		int size = 0;
+		// fprintf(stderr, "While go\n");
 		pthread_mutex_lock(&mutex_data_sol);
 		coups_actif = -1;
 		pthread_mutex_unlock(&mutex_data_sol);
 		pthread_mutex_lock(&mutex_data_ref);
 		coups_ref = -1;
 		pthread_mutex_unlock(&mutex_data_ref);
-
-		pthread_mutex_lock (&mutex_joining);
+		
 		pthread_mutex_lock (&mutex_init);
+		pthread_mutex_lock (&mutex_joining);		
 		User *user = joining->user;
 
 		while(user != NULL) {
@@ -327,8 +332,10 @@ void go() {
 			user = user->next;
 		}
 		size = init->size;
+
 		// Liberer les donnees de la liste joining.
 		vider_session(joining);
+		pthread_mutex_unlock (&mutex_joining);
 		vider_enchere(init_enchere);
 
 		user = init->user;
@@ -338,22 +345,40 @@ void go() {
 			user = user->next;
 		}
 		pthread_mutex_unlock (&mutex_init);
-		pthread_mutex_unlock (&mutex_joining);
+		fprintf(stderr, "Before testing\n");
 
+		if(size < 2 && is_playing == 1) {
+			is_playing = 0;
+			pthread_mutex_lock (&mutex_cond);
+			fprintf(stderr, "Je vais etre bloque\n");
+			pthread_cond_wait(&cond_session, &mutex_cond);
+			pthread_mutex_unlock (&mutex_cond);
+			end_session();
+		    	continue;
+		} else if(size < 2) {
+			pthread_mutex_lock (&mutex_cond);			
+			fprintf(stderr, "Je vais etre bloque\n");
+			pthread_cond_wait(&cond_session, &mutex_cond);
+			pthread_mutex_unlock (&mutex_cond);
+			continue;
+		} else {
+			fprintf(stderr, "Bah on peut commence a jouer\n");
+		}
 
+		fprintf(stderr, "Let's go\n");
 
+		pthread_mutex_lock(&mutex_nb_tour);
+	 	nb_tour = 1;
+		pthread_mutex_unlock(&mutex_nb_tour);
 		pthread_mutex_lock(&mutex_is_timeout); 
 		is_timeout_ref = 0;
 		pthread_mutex_unlock(&mutex_is_timeout);
 
 		if(size < 2) {
-			end_session();
-			pthread_mutex_lock(&mutex_nb_tour); 
-		    	nb_tour = 1;	
-			pthread_mutex_unlock(&mutex_nb_tour);
-		    	continue;
+			
 		} 
 
+		is_playing = 1;
 		printf("Starting...in 10sec\n");
 		sleep(10);
 		printf("Go...\n");
@@ -386,6 +411,8 @@ int send_to_all(int scom, char *name) {
 	char msg[100];
 	pthread_mutex_lock (&mutex_init); 
 	tmp = init->user;
+	printf("Xo 1 : %s\n", name);
+
 	while(tmp != NULL) {
 		// Notifier les clients deja connectes d'une nouvelle connexion
 		// Et envoyer au nouvel arrivant les joueurs connectes.
@@ -397,6 +424,8 @@ int send_to_all(int scom, char *name) {
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init); 
+
+	printf("Xo 2 : %s\n", name);
 
 	pthread_mutex_lock (&mutex_joining);
 	tmp = joining->user;
@@ -502,6 +531,9 @@ int connexion(int scom, char* buff) {
 	User *user = NULL;
 	name = calloc(50, sizeof(char));
 
+	
+
+
 	if(size < 8) {
 		fprintf(stderr, "[Serveur] Yo client i don't this command: '%s' (is it in the protocol ?)\n", buff);
 		send(scom, "Hey client i cannot connect you.\n", 34, 0);
@@ -522,15 +554,28 @@ int connexion(int scom, char* buff) {
 		return -1;
 	}
 	
+	pthread_mutex_lock (&mutex_cond); 
+	pthread_cond_signal (&cond_session); 
+	pthread_mutex_unlock (&mutex_cond); 
+
+
+
 	pthread_mutex_lock (&mutex_joining);
 	add_user(user, joining);
 	pthread_mutex_unlock (&mutex_joining);
-	printf("Successfully connected user: %s\n", name);
+	
+		
+
 	// BIENVENUE/user/	(S -> C)
 	sprintf(msg, "BIENVENUE/%s/\n", name);
-	send(scom, msg, strlen(msg), 0);
+	send(scom, msg, strlen(msg)+1, 0);
+
+	fprintf(stderr, "Xo: %s\n", name);
+
+	// fprintf(stderr, "CONEXION: command: %s\n", buff);
 
 	send_to_all(scom, name);
+	fprintf(stderr, "Successfully connected user: %s\n", name);
 
 	return 0;
 }
@@ -556,7 +601,7 @@ int deconnexion(int scom, char* buff) {
 		if(scom != tmpU->scom) {
 			// SORTI/user/	(S -> C)
 			sprintf(tmp, "SORTI/%s/\n", username);
-			send(tmpU->scom, tmp, strlen(tmp), 0);
+			send(tmpU->scom, tmp, strlen(tmp)+1, 0);
 			fprintf(stderr, "J'envoie a l'utilisateur: %s, tmp: %s\n", tmpU->username, tmp);		
 		} else {			
 			user = tmpU;
@@ -570,6 +615,7 @@ int deconnexion(int scom, char* buff) {
 	} else {
 		// Logique pour supprimer user de joining s'il y est bien sur.
 		delete_user(user, joining);
+		pthread_mutex_unlock (&mutex_init);
 	}	
 
 	fprintf(stderr, "[Serveur] Fin deconnexion.\n");
@@ -753,7 +799,7 @@ void* handle_client(void* arg) {
 	while(1) {
 		if( (count=recv(scom, buff, LINE_SIZE, 0)) < 0) { perror("read"); exit(1); }
 
-		fprintf(stderr, "Commande a traiter %s, count %d\n", buff, (int)count);
+		// fprintf(stderr, "Commande a traiter %s, count %d\n", buff, (int)count);
 
 		if(strlen(buff) <= 1) {
 			printf("[Serveur] Commande client inconnue.\n");
@@ -794,7 +840,7 @@ void* handle_client(void* arg) {
 int main() {
 	int scom, fromlen, *pt_scom;
 	struct sockaddr_in sin, exp;
-	pthread_t conn_id;
+	pthread_t conn_id, t_id;
 	
 	main_pid = getpid();
 	init = create_session(0);
@@ -802,6 +848,7 @@ int main() {
 	session_started = 0;
 	coups_actif = -1;
 	coups_ref = -1;
+	is_playing = 0;
 	pthread_mutex_lock(&mutex_phase); 
 	phase = UNDEF;
 	pthread_mutex_unlock(&mutex_phase);
@@ -809,7 +856,7 @@ int main() {
 	is_timeout_ref = 0;
 	is_timeout_enc = 0;
 	is_timeout_res = 0;
-    pthread_mutex_unlock(&mutex_is_timeout);
+    	pthread_mutex_unlock(&mutex_is_timeout);
 
 	if( (sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { perror("socket"); exit(1); }
 	sin.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -823,6 +870,10 @@ int main() {
 
 	if (bind(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) { perror("bind"); exit(1); }	
 	if (listen(sock, SOMAXCONN) < 0) { perror("listen"); exit(1); }
+
+	if (pthread_create(&t_id, NULL, go, NULL) != 0) {
+		printf("[Serveur] Erreur thread.\n");
+	}
 
 	while(1) {
 		if ((scom = accept(sock, (struct sockaddr *)&exp, (socklen_t *)&fromlen)) < 0) { perror("accept"); exit(1); }
