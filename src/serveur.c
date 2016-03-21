@@ -287,17 +287,18 @@ void start_session() {
 	// SESSION/plateau/	(S -> C)
 	sprintf(msg, "SESSION/(3,4,H)(3,4,G)(12,6,H)/\n");
 	while(tmp != NULL) {
-		send(tmp->scom, msg, strlen(msg)+1, 0);
+		send(tmp->scom, msg, strlen(msg), 0);
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock(&mutex_init);
+	fprintf(stderr,"[Serveur] End start session function.\n");
 }
 
 /*
  * Informer tous les clients de la fin de la phase de reflexion.
  */
 void fin_reflexion() {
-	fprintf(stderr,"Fin reflexion...\n");
+	fprintf(stderr,"Fin reflexion start...\n");
 	User *tmp;
 
 	pthread_mutex_lock(&mutex_init);
@@ -307,10 +308,10 @@ void fin_reflexion() {
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock(&mutex_init);
+	fprintf(stderr,"Fin reflexion start...\n");
 }
 
-void* go(void *arg) {
-    	arg++;
+void go() {
 	/* Chaque tour de boucle constitue un Tour de jeu si une session a commence. */
 	while(1) {
 		/* Rajouter les utilisateurs qui attendent */
@@ -323,7 +324,6 @@ void* go(void *arg) {
 		coups_ref = -1;
 		pthread_mutex_unlock(&mutex_data_ref);
 		
-		pthread_mutex_lock (&mutex_init);
 		pthread_mutex_lock (&mutex_joining);		
 		User *user = joining->user;
 
@@ -336,8 +336,9 @@ void* go(void *arg) {
 		// Liberer les donnees de la liste joining.
 		vider_session(joining);
 		pthread_mutex_unlock (&mutex_joining);
-		vider_enchere(init_enchere);
 
+		pthread_mutex_lock (&mutex_init);
+		vider_enchere(init_enchere);
 		user = init->user;
 		// Reinitialiser l'enchere pour le nouveau tour.
 		while(user != NULL) {
@@ -345,6 +346,7 @@ void* go(void *arg) {
 			user = user->next;
 		}
 		pthread_mutex_unlock (&mutex_init);
+
 		fprintf(stderr, "Before testing\n");
 
 		if(size < 2 && is_playing == 1) {
@@ -379,9 +381,9 @@ void* go(void *arg) {
 		} 
 
 		is_playing = 1;
-		printf("Starting...in 10sec\n");
+		fprintf(stderr, "Starting...in 10sec\n");
 		sleep(10);
-		printf("Go...\n");
+		fprintf(stderr, "Go...\n");
 
 		pthread_mutex_lock(&mutex_nb_tour); 
 		nb_tour++;
@@ -409,10 +411,9 @@ void* go(void *arg) {
 int send_to_all(int scom, char *name) {
 	User *tmp;
 	char msg[100];
+	
 	pthread_mutex_lock (&mutex_init); 
 	tmp = init->user;
-	printf("Xo 1 : %s\n", name);
-
 	while(tmp != NULL) {
 		// Notifier les clients deja connectes d'une nouvelle connexion
 		// Et envoyer au nouvel arrivant les joueurs connectes.
@@ -424,8 +425,6 @@ int send_to_all(int scom, char *name) {
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init); 
-
-	printf("Xo 2 : %s\n", name);
 
 	pthread_mutex_lock (&mutex_joining);
 	tmp = joining->user;
@@ -802,7 +801,7 @@ void* handle_client(void* arg) {
 		// fprintf(stderr, "Commande a traiter %s, count %d\n", buff, (int)count);
 
 		if(strlen(buff) <= 1) {
-			printf("[Serveur] Commande client inconnue.\n");
+			fprintf(stderr, "[Serveur] Commande client inconnue.\n");
 			break;
 		}
 		switch(decode_header(buff)) {
@@ -814,7 +813,7 @@ void* handle_client(void* arg) {
 			deconnexion(scom, buff);
 			break;
 		case 3: /* START SESSION */
-			printf("[Serveur] Commande pas cense etre la.\n");
+			fprintf(stderr, "[Serveur] Commande pas cense etre la.\n");
 			break;
 		case 4: /* TROUVE  */
 			client_trouve(scom, buff);
@@ -826,7 +825,7 @@ void* handle_client(void* arg) {
 			client_resolution(scom, buff);
 			break;
 		default:
-			printf("[Serveur] Something really weird happened.\n");
+			fprintf(stderr, "[Serveur] Something really weird happened.\n");
 			break;
 		}
 		memset(buff, 0, LINE_SIZE);
@@ -836,11 +835,39 @@ void* handle_client(void* arg) {
 	pthread_exit(0); 
 }
 
-
-int main() {
+void* listen_to_clients(void* arg) {
 	int scom, fromlen, *pt_scom;
 	struct sockaddr_in sin, exp;
-	pthread_t conn_id, t_id;
+	pthread_t conn_id;
+
+	arg++;
+	if( (sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { perror("socket"); exit(1); }
+	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	sin.sin_port = htons(SERVER_PORT);
+	sin.sin_family = AF_INET;
+	
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0) {
+    		perror("setsockopt(SO_REUSEADDR) failed");
+		exit(1);
+	}
+
+	if (bind(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) { perror("bind"); exit(1); }	
+	if (listen(sock, SOMAXCONN) < 0) { perror("listen"); exit(1); }
+
+	while(1) {
+		if ((scom = accept(sock, (struct sockaddr *)&exp, (socklen_t *)&fromlen)) < 0) { perror("accept"); exit(1); }
+		
+		pt_scom = (int *) malloc(sizeof(int));
+		*pt_scom = scom;
+		if (pthread_create(&conn_id, NULL, handle_client, (void *)pt_scom) != 0) {
+			fprintf(stderr, "[Serveur] Erreur thread.\n");
+		}
+	}
+}
+
+int main() {
+	
+	pthread_t t_id;
 	
 	main_pid = getpid();
 	init = create_session(0);
@@ -858,32 +885,11 @@ int main() {
 	is_timeout_res = 0;
     	pthread_mutex_unlock(&mutex_is_timeout);
 
-	if( (sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) { perror("socket"); exit(1); }
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
-	sin.sin_port = htons(SERVER_PORT);
-	sin.sin_family = AF_INET;
-	
-	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0) {
-    		perror("setsockopt(SO_REUSEADDR) failed");
-		exit(1);
+	if (pthread_create(&t_id, NULL, listen_to_clients, NULL) != 0) {
+		fprintf(stderr, "[Serveur] Erreur thread.\n");
 	}
 
-	if (bind(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) { perror("bind"); exit(1); }	
-	if (listen(sock, SOMAXCONN) < 0) { perror("listen"); exit(1); }
-
-	if (pthread_create(&t_id, NULL, go, NULL) != 0) {
-		printf("[Serveur] Erreur thread.\n");
-	}
-
-	while(1) {
-		if ((scom = accept(sock, (struct sockaddr *)&exp, (socklen_t *)&fromlen)) < 0) { perror("accept"); exit(1); }
-		
-		pt_scom = (int *) malloc(sizeof(int));
-		*pt_scom = scom;
-		if (pthread_create(&conn_id, NULL, handle_client, (void *)pt_scom) != 0) {
-			printf("[Serveur] Erreur thread.\n");
-		}
-	}
+	go();
 
 	close(sock);
 
