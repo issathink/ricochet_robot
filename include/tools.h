@@ -17,9 +17,9 @@
 #define		NB_CASES			16
 #define		SCORE_OBJ			100
 
-#define		TEMPS_REFLEXION	300		/* secondes */
-#define		TEMPS_ENCHERE		30		/* secondes */
-#define		TEMPS_RESOLUTION	60		/* secondes */
+#define		TEMPS_REFLEXION	10 //300		/* secondes */
+#define		TEMPS_ENCHERE		3 // 30		/* secondes */
+#define		TEMPS_RESOLUTION	6 // 0		/* secondes */
 
 #define		SERVER_PORT		2016
 #define		LINE_SIZE			200
@@ -68,13 +68,13 @@ User*		create_user(char *username, int scom);
 int 			add_user(User *user, Session *session);
 User*		delete_user(User *user, Session *session);
 void 		affiche_user(User *user);
-void		free_user(User* user);
+void			free_user(User* user);
 
 Enchere* 	create_enchere(int scom, int mise);
 int 			add_enchere(Enchere *enchere, Enchere *init);
 Enchere*	delete_enchere(Enchere* enchere, Enchere* init);
-void		free_enchere(Enchere* enchere);
-void		vider_enchere(Enchere* init);
+void			free_enchere(Enchere* enchere);
+void			vider_enchere(Enchere* init);
 
 
 /* Manipulation des sessions */

@@ -39,8 +39,7 @@ char		username_actif[50];
  */
 void handler_reflexion(int sig) {
 	struct itimerval itv; 
-	sig++;
-	fprintf(stderr, "Yay j'ai recu handler reflexion\n");
+	fprintf(stderr, "Yay j'ai recu handler reflexion signal: %d\n", sig);
 	if(sig == SIGINT) {
 		// Desactiver le timer (qui est cense indiquer la fin de la phase).
 		itv.it_value.tv_sec = 0;
@@ -51,6 +50,7 @@ void handler_reflexion(int sig) {
 		pthread_mutex_lock(&mutex_is_timeout); 
 		is_timeout_ref = 1;
 		pthread_mutex_unlock(&mutex_is_timeout);
+		fprintf(stderr, "J'ai recu un SIGINT\n");
 	} else if(sig == SIGALRM) {
 		/* Temps ecoule fin de la phase de reflexion */
 		pthread_mutex_lock(&mutex_is_timeout); 
@@ -64,8 +64,7 @@ void handler_reflexion(int sig) {
  */
 void handler_encheres(int sig) {
 	/* Reveil de serveur (fin de la phase des encheres) */
-	sig++;
-	fprintf(stderr, "Yay j'ai recu handler enchere.\n");
+	fprintf(stderr, "Yay j'ai recu handler enchere. %d\n", sig);
 }
 
 /*
@@ -86,17 +85,19 @@ void send_enigme_and_bilan() {
 	temp = malloc(sizeof(char)*50);
 
 	pthread_mutex_lock (&mutex_init); 
+	user = init->user;
+	while(user != NULL) {
+		// sprintf(temp, "LIST/%s/%d/\n", user->username, user->score);
+		// strcat(buff, temp);
+		
+		user = user->next;
+		// Faire la chaine qui contiendra le score et le nom de tous les utilisateurs
+	}
+
 	tmp = init->user;
 	sprintf(buff, "TOUR/(2,2,3,4,7,5,6,6,9,3,R)/6(saucisse,3)(brouette,0)/\n");
 	while(tmp != NULL) {
-		user = init->user;
-		while(user != NULL) {
-			// sprintf(temp, "LIST/%s/%d/\n", user->username, user->score);
-			// strcat(buff, temp);
 			
-			user = user->next;
-			// Faire la chaine qui contiendra le score et le nom de tous les utilisateurs
-		}	
 		send(tmp->scom, buff, strlen(buff), 0);
 		tmp = tmp->next;
 	}
@@ -116,7 +117,7 @@ void send_il_a_trouve(int scom, char* username, int coups) {
 	while(tmp != NULL) {
 		// ILATROUVE/user/coups/ (S -> C)
 		if(tmp->scom != scom)
-			send(tmp->scom, msg, strlen(msg)+1, 0);
+			send(tmp->scom, msg, strlen(msg), 0);
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init); 
@@ -130,19 +131,23 @@ void send_fin_enchere() {
 	int scom;
 	char msg[70];
 
+	fprintf(stderr, "[Serveur] Debut send fin enchere\n"); 
 	pthread_mutex_lock(&mutex_data_sol);
 	scom = scom_actif;
 	sprintf(msg, "FINENCHERE/%s/%d/\n", username_actif, coups_actif);
-	pthread_mutex_lock(&mutex_data_sol);
+	pthread_mutex_unlock(&mutex_data_sol);
+
+	
 
 	pthread_mutex_lock (&mutex_init); 
 	tmp = init->user;
 	while(tmp != NULL) {
 		if(tmp->scom != scom) 
-			send(tmp->scom, msg, strlen(msg)+1, 0);
+			send(tmp->scom, msg, strlen(msg), 0);
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init);
+	fprintf(stderr, "[Serveur] Fin send_fin_enchere\n");
 }
 
 /*
@@ -159,22 +164,22 @@ int reflexion() {
 	action.sa_flags = 0; 
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
 	sigaction(SIGINT, &action, (struct sigaction *) 0);
+	itv.it_interval.tv_usec = 0;
+	itv.it_interval.tv_sec = 0;
 	itv.it_value.tv_sec = TEMPS_REFLEXION;
 	itv.it_value.tv_usec = 0; 
 
-	fprintf(stderr, "Xo: Before send_enigme_and_bilan\n");
 	// Informer tout le monde du lancement de la phase de reflexion
 	send_enigme_and_bilan();
-	fprintf(stderr, "Xo: After send_enigme_and_bilan\n");
 	pthread_mutex_lock(&mutex_phase); 
 	phase = REFLEXION;
 	pthread_mutex_unlock(&mutex_phase);
 
-	setitimer(ITIMER_REAL, &itv, (struct itimerval *)0);
+	if(setitimer(ITIMER_REAL, &itv, (struct itimerval *)0) < 0) { perror("setitimer"); }
 	sigfillset(&set);
 	sigdelset(&set, SIGINT);
 	sigdelset(&set, SIGALRM);
-	fprintf(stderr, "Xo: Before sigsuspend\n");
+	fprintf(stderr, "[Serveur] 1 Reflexion sigsuspend\n");
 	sigsuspend(&set);
 	
 	pthread_mutex_lock(&mutex_is_timeout);
@@ -198,6 +203,7 @@ int reflexion() {
 		// ILATROUVE/user/coups/	(S -> C)
 		send_il_a_trouve(scom, username, coups);
 	}	
+	fprintf(stderr, "[Serveur] 1 Fin de la phase de reflexion\n");
 	
 	return 0;
 }
@@ -213,21 +219,29 @@ int enchere() {
 	sigemptyset(&action.sa_mask); 
 	action.sa_flags = 0; 
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
+	itv.it_interval.tv_usec = 0;
+	itv.it_interval.tv_sec = 0;
 	itv.it_value.tv_sec = TEMPS_ENCHERE;
 	itv.it_value.tv_usec = 0; 
+
+	fprintf(stderr, "[Serveur] 2 Debut de la phase d'encheres\n");
 
 	setitimer(ITIMER_REAL, &itv, (struct itimerval *)0);
 	sigfillset(&set);
 	sigdelset(&set, SIGINT);
 	sigdelset(&set, SIGALRM);
 	sigsuspend(&set);
+	
 
 	pthread_mutex_lock(&mutex_phase); 
 	phase = RESOLUTION;
 	pthread_mutex_unlock(&mutex_phase);
+
+	fprintf(stderr, "[Serveur] 2 Enchere apres sigsuspend et mutex_phase\n"); 
 	
 	// FINENCHERE/user/coups/	(S -> C)
 	send_fin_enchere();
+	fprintf(stderr, "[Serveur] 2 Fin de la phase d'encheres\n");
 
 	return 0;
 }
@@ -246,8 +260,12 @@ int resolution() {
 	sigemptyset(&action.sa_mask); 
 	action.sa_flags = 0; 
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
+	itv.it_interval.tv_usec = 0;
+	itv.it_interval.tv_sec = 0;
 	itv.it_value.tv_sec = TEMPS_RESOLUTION;
 	itv.it_value.tv_usec = 0; 
+
+	fprintf(stderr, "[Serveur] 3 Debut de la phase de resolution\n");
 
 	// Tant qu'il y a des joueurs qui ont fait des encheres
 	// while() {
@@ -258,6 +276,7 @@ int resolution() {
 		sigsuspend(&set);
 	// }
 
+	fprintf(stderr, "[Serveur] 3 Fin de la phase de resolution\n");
 	return 0;
 }
 
@@ -311,7 +330,7 @@ void fin_reflexion() {
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock(&mutex_init);
-	fprintf(stderr,"Fin reflexion start...\n");
+	fprintf(stderr,"Fin reflexion end...\n");
 }
 
 void go() {
@@ -343,7 +362,7 @@ void go() {
 		pthread_mutex_lock (&mutex_init);
 		vider_enchere(init_enchere);
 		user = init->user;
-		// Reinitialiser l'enchere pour le nouveau tour.
+		// Reinitialiser l'enchere pour le nouveau tour. 
 		while(user != NULL) {
 			user->coups = -1;
 			user = user->next;
@@ -355,22 +374,22 @@ void go() {
 		if(size < 2 && is_playing == 1) {
 			is_playing = 0;
 			pthread_mutex_lock (&mutex_cond);
-			fprintf(stderr, "Je vais etre bloque\n");
+			// fprintf(stderr, "Je vais etre bloque\n");
 			pthread_cond_wait(&cond_session, &mutex_cond);
 			pthread_mutex_unlock (&mutex_cond);
 			end_session();
 		    	continue;
 		} else if(size < 2) {
 			pthread_mutex_lock (&mutex_cond);			
-			fprintf(stderr, "Je vais etre bloque\n");
+			// fprintf(stderr, "Je vais etre bloque\n");
 			pthread_cond_wait(&cond_session, &mutex_cond);
 			pthread_mutex_unlock (&mutex_cond);
 			continue;
 		} else {
-			fprintf(stderr, "Bah on peut commence a jouer\n");
+			// fprintf(stderr, "Bah on peut commence a jouer\n");
 		}
 
-		fprintf(stderr, "Let's go\n");
+		// fprintf(stderr, "Let's go\n");
 
 		pthread_mutex_lock(&mutex_nb_tour);
 	 	nb_tour = 1;
@@ -384,7 +403,7 @@ void go() {
 		sleep(10);
 		fprintf(stderr, "Go...\n");
 
-		pthread_mutex_lock(&mutex_nb_tour); 
+		pthread_mutex_lock(&mutex_nb_tour);
 		nb_tour++;
 		pthread_mutex_unlock(&mutex_nb_tour);
 	       
@@ -675,10 +694,10 @@ void client_trouve(int scom, char *buff) {
 				strcpy(username_actif, username);
 				pthread_mutex_unlock(&mutex_data_sol);
 				// Notifier le thread main de la terminaison 
-				kill(main_pid, SIGALRM);
+				kill(main_pid, SIGINT);
 			} else {
 				pthread_mutex_unlock(&mutex_phase); 
-			send(scom, "Commande client inconnue.\n", 28, 0);
+				send(scom, "Commande client inconnue.\n", 28, 0);
 			}
 		} else {
 			pthread_mutex_unlock(&mutex_init);		
@@ -839,6 +858,7 @@ void* listen_to_clients(void* arg) {
 	sin.sin_addr.s_addr = htonl(INADDR_ANY);
 	sin.sin_port = htons(SERVER_PORT);
 	sin.sin_family = AF_INET;
+	fromlen = sizeof(struct sockaddr_in);
 	
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0) {
     		perror("setsockopt(SO_REUSEADDR) failed");
@@ -847,6 +867,8 @@ void* listen_to_clients(void* arg) {
 
 	if (bind(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) { perror("bind"); exit(1); }	
 	if (listen(sock, SOMAXCONN) < 0) { perror("listen"); exit(1); }
+
+	fprintf(stderr, "Come on clients...\n");
 
 	while(1) {
 		if ((scom = accept(sock, (struct sockaddr *)&exp, (socklen_t *)&fromlen)) < 0) { perror("accept"); exit(1); }
