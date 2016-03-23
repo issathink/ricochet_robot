@@ -78,7 +78,7 @@ void affiche_user(User *user) {
 	if(user == NULL)
 		printf("/* WARNING afficher_user */ Want to display NULL user.\n");
 	else
-		printf("  [User] ID: %d, name: %s, score: %d\n", user->id, user->username, user->score);
+		printf("  [User] ID: %d, name: %s, score: %d, scom: %d\n", user->id, user->username, user->score, user->scom);
 }
 
 void free_user(User* user) {
@@ -87,6 +87,7 @@ void free_user(User* user) {
 
 	free(user->username);
 	free(user);
+	user = NULL;
 }
 
 Enchere* create_enchere(int scom, int mise) {
@@ -283,7 +284,7 @@ int decode_header(char *str) {
 User* cherche_user(Session* session, int scom) {
 	User *tmp = session->user;
 
-	if(session->size <= 0)
+	if(session->size <= 0 || tmp == NULL)
 		return NULL; 
 
 	while(tmp != NULL) {
@@ -389,6 +390,8 @@ void vider_session(Session *joining) {
 		user = user->next;
 		free_user(tmp);
 	}
+	joining->size = 0;
+	joining->user = NULL;
 }
 
 /*
@@ -405,6 +408,7 @@ void vider_enchere(Enchere* init) {
 		ench = ench->next;
 		free_enchere(tmp);
 	}
+	ench = NULL;
 }
 
 /*

@@ -345,12 +345,14 @@ void go() {
 		pthread_mutex_lock(&mutex_data_ref);
 		coups_ref = -1;
 		pthread_mutex_unlock(&mutex_data_ref);
+
 		
+		pthread_mutex_lock (&mutex_init);
 		pthread_mutex_lock (&mutex_joining);		
 		User *user = joining->user;
 
 		while(user != NULL) {
-			add_user(user, init); 
+			add_user(create_user(user->username, user->scom), init); 
 			user = user->next;
 		}
 		size = init->size;
@@ -359,7 +361,7 @@ void go() {
 		vider_session(joining);
 		pthread_mutex_unlock (&mutex_joining);
 
-		pthread_mutex_lock (&mutex_init);
+		
 		vider_enchere(init_enchere);
 		user = init->user;
 		// Reinitialiser l'enchere pour le nouveau tour. 
@@ -626,9 +628,14 @@ int deconnexion(int scom, char* buff) {
 		delete_user(user, init);
 		pthread_mutex_unlock (&mutex_init);
 	} else {
-		// Logique pour supprimer user de joining s'il y est bien sur.
-		delete_user(user, joining);
 		pthread_mutex_unlock (&mutex_init);
+		// Logique pour supprimer user de joining s'il y est bien sur.
+		pthread_mutex_lock (&mutex_joining);
+		tmpU = cherche_user(joining, user->scom);
+		if(tmpU != NULL)
+			delete_user(tmpU, joining);
+		pthread_mutex_unlock (&mutex_joining);
+		
 	}	
 
 	fprintf(stderr, "[Serveur] Fin deconnexion.\n");
@@ -647,14 +654,12 @@ void disconnect_if_connected(int scom) {
 	
 	pthread_mutex_lock (&mutex_joining);
 	user = cherche_user(joining, scom);
-	fprintf(stderr, "Joining session size: %d\n", joining->size);
-	affiche_session(joining);
+	
+	
 	pthread_mutex_unlock (&mutex_joining);
 		
-
-
 	if(user == NULL) {
-		pthread_mutex_lock (&mutex_init); 
+		pthread_mutex_lock (&mutex_init);
 		user = cherche_user(init, scom);
 		pthread_mutex_unlock (&mutex_init);
 	}
@@ -663,6 +668,8 @@ void disconnect_if_connected(int scom) {
 		fprintf(stderr, "Is user null: %d %s& scom : %d;\n", (user == NULL), user->username, user->scom);
 		sprintf(buff, "SORT/%s/\n", user->username);
 		deconnexion(scom, buff);
+	} else {
+		fprintf(stderr, "Je sais pas user n'est ni dans joining ni dans init.\n");
 	}
 }
 
@@ -849,8 +856,8 @@ void* handle_client(void* arg) {
 		}
 		memset(buff, 0, LINE_SIZE);
 	}
-	close(scom);
 	disconnect_if_connected(scom);
+	close(scom);
 	pthread_exit(0); 
 }
 
@@ -894,7 +901,7 @@ int main() {
 	main_pid = getpid();
 	init = create_session(0);
 	joining = create_session(0);
-	/*session_started = 0;
+	session_started = 0;
 	coups_actif = -1;
 	coups_ref = -1;
 	is_playing = 0;
@@ -913,9 +920,9 @@ int main() {
 
 	go();
 
-	close(sock);*/
+	close(sock);
 
-	User *user = create_user("toto", 1);
+	/*User *user = create_user("toto", 1);
 	User *user2 = create_user("titi", 2);
 	User *user3 = create_user("tutu", 3);
 
@@ -923,24 +930,27 @@ int main() {
 	Session *session2 = create_session(40);
 	Session *session3 = create_session(50);
 	
-	add_user(user, session);	
-	add_user(user2, session);	
+	add_user(user, joining);	
+	add_user(user2, joining);	
 	add_user(user3, session);
 
-	// affiche_session(session);
+	affiche_session(joining);
+	affiche_user(cherche_user(joining, 1));
 
-	delete_user(user, session);
+	affiche_session(joining);
 
-	add_session(session, init);
-	add_session(session2, init);
-	add_session(session3, init);
+	delete_user(user, joining);
 
-	affiche_sessions(init);
+	//add_session(session, init);
+	//add_session(session2, init);
+	//add_session(session3, init);
+
+	//affiche_session(init);
 	printf("\n");
 
-	delete_session(session3, init);
+	//delete_session(session3, init);
 
-	affiche_sessions(init);
+	affiche_session(joining);*/
 
 	return 0;
 }
