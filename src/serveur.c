@@ -578,6 +578,7 @@ int connexion(int scom, char* buff) {
 
 	pthread_mutex_lock (&mutex_joining);
 	add_user(user, joining);
+	affiche_session(joining);
 	pthread_mutex_unlock (&mutex_joining);		
 
 	// BIENVENUE/user/	(S -> C)
@@ -646,8 +647,12 @@ void disconnect_if_connected(int scom) {
 	
 	pthread_mutex_lock (&mutex_joining);
 	user = cherche_user(joining, scom);
+	fprintf(stderr, "Joining session size: %d\n", joining->size);
+	affiche_session(joining);
 	pthread_mutex_unlock (&mutex_joining);
-	
+		
+
+
 	if(user == NULL) {
 		pthread_mutex_lock (&mutex_init); 
 		user = cherche_user(init, scom);
@@ -655,6 +660,7 @@ void disconnect_if_connected(int scom) {
 	}
 
 	if(user != NULL) {
+		fprintf(stderr, "Is user null: %d %s& scom : %d;\n", (user == NULL), user->username, user->scom);
 		sprintf(buff, "SORT/%s/\n", user->username);
 		deconnexion(scom, buff);
 	}
@@ -809,7 +815,7 @@ void* handle_client(void* arg) {
  	}
 
 	while(1) {
-		if( (count=recv(scom, buff, LINE_SIZE, 0)) < 0) { perror("read"); exit(1); }
+		if( (count=recv(scom, buff, LINE_SIZE, 0)) < 0) { perror("read"); break; }
 
 		// fprintf(stderr, "Commande a traiter %s, count %d\n", buff, (int)count);
 

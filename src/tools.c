@@ -26,23 +26,20 @@ User *create_user(char *username, int scom) {
 }
 
 int add_user(User *user, Session *session) {
-	Session *tmp = session;
-	User *_user = session->user;	
+	User *tmp = session->user;
 
 	if(user == NULL || session == NULL)
 		return -1;
 
-	if(tmp->size == 0) {
-		tmp->user = user;
-		tmp->size++;
+	if(session->size == 0) {
+		session->user = user;
+		session->size++;
 		return 0;
 	}
 
-	while(tmp->user->next != NULL)
-		tmp->user = tmp->user->next;
-	tmp->user->next = user;
-	
-	session->user = _user;
+	while(tmp->next != NULL)
+		tmp = tmp->next;
+	tmp->next = user;
 	session->size++;
 
 	return 0;
@@ -284,11 +281,16 @@ int decode_header(char *str) {
  * return user if there is one, NULL otherwise.
  */
 User* cherche_user(Session* session, int scom) {
-	User *tmp = session->user;;
+	User *tmp = session->user;
+
+	if(session->size <= 0)
+		return NULL; 
 
 	while(tmp != NULL) {
-		if(tmp->scom == scom)
+		if(tmp->scom == scom) {
+			fprintf(stderr, "Jai trouve scom: %d, username: %s\n", tmp->scom, tmp->username);		
 			return tmp;
+		}
 		tmp = tmp->next;
 	}
 
