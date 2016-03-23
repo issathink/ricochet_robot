@@ -894,7 +894,7 @@ int main() {
 	main_pid = getpid();
 	init = create_session(0);
 	joining = create_session(0);
-	session_started = 0;
+	/*session_started = 0;
 	coups_actif = -1;
 	coups_ref = -1;
 	is_playing = 0;
@@ -913,11 +913,11 @@ int main() {
 
 	go();
 
-	close(sock);
+	close(sock);*/
 
-	/*User *user = create_user("toto");
-	User *user2 = create_user("titi");
-	User *user3 = create_user("tutu");
+	User *user = create_user("toto", 1);
+	User *user2 = create_user("titi", 2);
+	User *user3 = create_user("tutu", 3);
 
 	Session *session = create_session(30);
 	Session *session2 = create_session(40);
@@ -940,7 +940,7 @@ int main() {
 
 	delete_session(session3, init);
 
-	affiche_sessions(init);*/
+	affiche_sessions(init);
 
 	return 0;
 }
