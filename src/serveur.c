@@ -199,7 +199,7 @@ int reflexion() {
 		coups = coups_ref;
 		pthread_mutex_unlock(&mutex_data_ref);
 		// TUASTROUVE/	(S -> C)
-		send(scom, "TUASTROUVE/\n", 13, 0);
+		send(scom, "TUASTROUVE/\n", 12, 0);
 		// ILATROUVE/user/coups/	(S -> C)
 		send_il_a_trouve(scom, username, coups);
 	}	
@@ -764,7 +764,7 @@ void client_enchere(int scom, char* buff) {
 				} else
 					return;
 				// TUENCHERE/	(S -> C)
-				send(scom, "TUENCHERE/\n", 12, 0);
+				send(scom, "TUENCHERE/\n", 11, 0);
 				// ILENCHERE/user/coups/	(S -> C)
 				send_il_enchere(user->username, scom, coups);
 			} else {
