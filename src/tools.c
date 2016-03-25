@@ -155,9 +155,8 @@ void free_enchere(Enchere* enchere) {
 /*
  * Retourne le moins offrant et le supprime de la liste des encheres.
  */
-Enchere* getLeMoinsOffrant(Enchere *init) {
+Enchere* get_le_moins_offrant(Enchere *init) {
 	Enchere* tmp = init, *ench;
-
 
 	if(init == NULL)
 		return NULL;
@@ -274,6 +273,8 @@ int decode_header(char *str) {
 		return 5;
 	else if(strncmp("SOLUTION/", str, strlen("SOLUTION/")) == 0)
 		return 6;
+	else if(strncmp("SEND/", str, strlen("SEND/")) == 0)
+		return 7;
 	return 0;
 }
 
@@ -370,7 +371,7 @@ int get_username_and_deplacements(char* buff, char* username, char* deplacements
 		deplacements[j++] = buff[i++];
 	deplacements[j] = '\0';
 
-	if(j < 1 || j > coups) return -1;
+	if(j < 1 || j > (coups*2)) return -1;
 
 	return 0;
 }
