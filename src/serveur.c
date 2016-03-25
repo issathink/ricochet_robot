@@ -199,7 +199,7 @@ int reflexion() {
 		coups = coups_ref;
 		pthread_mutex_unlock(&mutex_data_ref);
 		// TUASTROUVE/	(S -> C)
-		send(scom, "TUASTROUVE/\n", 13, 0);
+		send(scom, "TUASTROUVE/\n", 12, 0);
 		// ILATROUVE/user/coups/	(S -> C)
 		send_il_a_trouve(scom, username, coups);
 	}	
@@ -322,11 +322,12 @@ void start_session() {
 void fin_reflexion() {
 	fprintf(stderr,"Fin reflexion start...\n");
 	User *tmp;
-
+	char msg[100];
 	pthread_mutex_lock(&mutex_init);
 	tmp = init->user;
+	sprintf(msg, "FINREFLEXION/\n");
 	while(tmp != NULL) {
-		send(tmp->scom, "FINREFLEXION/\n", 15, 0);
+		send(tmp->scom,msg ,strlen(msg), 0);
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock(&mutex_init);
@@ -441,7 +442,7 @@ int send_to_all(int scom, char *name) {
 		if(tmp->scom != scom) {
 			// CONNECTE/user/	(S -> C)
 			sprintf(msg, "CONNECTE/%s/\n", name);
-			send(tmp->scom, msg, strlen(msg)+1, 0);
+			send(tmp->scom, msg, strlen(msg), 0);
 		}
 		tmp = tmp->next;
 	}
@@ -452,7 +453,7 @@ int send_to_all(int scom, char *name) {
 	while(tmp != NULL) {
 		if(tmp->scom != scom) {
 			sprintf(msg, "CONNECTE/%s/\n", name);
-			send(tmp->scom, msg, strlen(msg)+1, 0);
+			send(tmp->scom, msg, strlen(msg), 0);
 		}
 		tmp = tmp->next;
 	}	
@@ -474,7 +475,7 @@ void send_il_enchere(char* username, int scom, int coups) {
 	while(tmp != NULL) {
 		// Notifier les clients de l'enchere du client
 		if(tmp->scom != scom)
-			send(tmp->scom, msg, strlen(msg)+1, 0);
+			send(tmp->scom, msg, strlen(msg), 0);
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init);
@@ -493,7 +494,7 @@ void send_sa_solution(int scom, char* username, char* deplacements) {
 	sprintf(msg, "SASOLUTION/%s/%s/\n", username, deplacements);
 	while(tmp != NULL) {
 		if(tmp->scom != scom)
-			send(tmp->scom, msg, strlen(msg)+1, 0);
+			send(tmp->scom, msg, strlen(msg), 0);
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init);
@@ -511,7 +512,7 @@ void send_mauvaise(char* username) {
 	pthread_mutex_lock (&mutex_init); 
 	tmp = init->user;
 	while(tmp != NULL) {
-		send(tmp->scom, msg, strlen(msg)+1, 0);
+		send(tmp->scom, msg, strlen(msg), 0);
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init);
@@ -528,7 +529,7 @@ void send_bonne_solution() {
 	pthread_mutex_lock (&mutex_init); 
 	tmp = init->user;
 	while(tmp != NULL) {
-		send(tmp->scom, msg, strlen(msg)+1, 0);
+		send(tmp->scom, msg, strlen(msg), 0);
 		tmp = tmp->next;
 	}
 	pthread_mutex_unlock (&mutex_init);
@@ -585,7 +586,7 @@ int connexion(int scom, char* buff) {
 
 	// BIENVENUE/user/	(S -> C)
 	sprintf(msg, "BIENVENUE/%s/\n", name);
-	send(scom, msg, strlen(msg)+1, 0);
+	send(scom, msg, strlen(msg), 0);
 
 	// fprintf(stderr, "CONEXION: command: %s\n", buff);
 
@@ -616,7 +617,7 @@ int deconnexion(int scom, char* buff) {
 		if(scom != tmpU->scom) {
 			// SORTI/user/	(S -> C)
 			sprintf(tmp, "SORTI/%s/\n", username);
-			send(tmpU->scom, tmp, strlen(tmp)+1, 0);
+			send(tmpU->scom, tmp, strlen(tmp), 0);
 			fprintf(stderr, "J'envoie a l'utilisateur: %s, tmp: %s\n", tmpU->username, tmp);		
 		} else {			
 			user = tmpU;
@@ -763,13 +764,13 @@ void client_enchere(int scom, char* buff) {
 				} else
 					return;
 				// TUENCHERE/	(S -> C)
-				send(scom, "TUENCHERE/\n", 12, 0);
+				send(scom, "TUENCHERE/\n", 11, 0);
 				// ILENCHERE/user/coups/	(S -> C)
 				send_il_enchere(user->username, scom, coups);
 			} else {
 				// ECHECENCHERE/user/	(S -> C)
 				sprintf(tmp, "ECHECENCHERE/%s/\n", user->username);
-				send(scom, tmp, strlen(tmp)+1, 0);
+				send(scom, tmp, strlen(tmp), 0);
 			}
 		}
 		pthread_mutex_unlock(&mutex_data_sol);
