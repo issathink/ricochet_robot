@@ -17,9 +17,9 @@
 #define		NB_CASES			16
 #define		SCORE_OBJ			100
 
-#define		TEMPS_REFLEXION	30 //300		/* secondes */
-#define		TEMPS_ENCHERE		30 // 30		/* secondes */
-#define		TEMPS_RESOLUTION	30 // 60		/* secondes */
+#define		TEMPS_REFLEXION	60 //300		/* secondes */
+#define		TEMPS_ENCHERE		60 // 30		/* secondes */
+#define		TEMPS_RESOLUTION	60 // 60		/* secondes */
 
 #define		SERVER_PORT		2016
 #define		LINE_SIZE			200

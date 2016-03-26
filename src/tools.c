@@ -370,8 +370,10 @@ int get_username_and_deplacements(char* buff, char* username, char* deplacements
 	while(buff[i] != '/')
 		deplacements[j++] = buff[i++];
 	deplacements[j] = '\0';
-
-	if(j < 1 || j > (coups*2)) return -1;
+	
+	fprintf(stderr, "Cest avant deplacements qui ne crash pas j: %d.\n", j);
+	if(j < 1) return -1;
+	else if(j > (coups*2+1)) return -2;
 
 	return 0;
 }
