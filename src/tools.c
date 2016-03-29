@@ -131,6 +131,7 @@ Enchere* cherche_enchere(int scom, Enchere* init) {
 	if(init == NULL)
 		return NULL;
 		
+	tmp = init;
 	while(tmp->next != NULL) {
 		if(tmp->scom == scom)
 			return tmp;
@@ -515,7 +516,7 @@ void move(Plateau* plateau,Enigme* enigme, int *x, int *y, char d) {
  * return 0 si la solution est bonne -1 sinon
  */ 
 int solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements) {
-	int i;
+	int i = 0;
 	char c, d;
 	
 	while(deplacements[i] != '\0') {
