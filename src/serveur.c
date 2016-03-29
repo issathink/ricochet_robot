@@ -3,24 +3,24 @@
 /* Variable pour stocker toutes les sessions en cours */
 pthread_mutex_t mutex_init = 		PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_joining = 	PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_phase = 		PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_phase = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_nb_tour = 	PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_is_timeout = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_is_timeout = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_ref = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_enc = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_sol = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_cond = 		PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_enchere =		PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_enchere =	PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_session = 		PTHREAD_COND_INITIALIZER; 
 
 Session 	*init, *joining;
 int 		session_started;
-int			is_playing;
+int		is_playing;
 
 int 		sock;
 int 		nb_tour = 1;
-PHASE 		phase;
-pid_t 		main_pid;
+PHASE 	phase;
+pid_t 	main_pid;
 
 int 		is_timeout_ref;
 int 		is_timeout_enc;
@@ -32,10 +32,13 @@ char		username_ref[50];
 
 int 		scom_actif;
 int 		coups_actif;
-char*		depla_actif;
-Enchere* 	init_enchere;
+char*	depla_actif;
+Enchere* init_enchere;
 char		username_actif[50];
 int 		game_over;
+
+Plateau*	plateau;
+Enigme*	enigme;
 
 /*
  * Handler de signal pour indiquer la fin de la phase de reflexion.
@@ -75,8 +78,7 @@ void handler_encheres(int sig) {
  */
 void handler_resolution(int sig) {
 	/* Reveil du serveur (fin de la phase de resolution) */
-	sig++;
-	fprintf(stderr, "Yay j'ai recu handler resolution.\n");
+	fprintf(stderr, "Yay j'ai recu handler resolution. %d\n", sig);
 }
 
 /*
@@ -84,21 +86,46 @@ void handler_resolution(int sig) {
  */
 void send_enigme_and_bilan() {
 	User* user;
-	char *msg, *bilan, *enigme;
+	char *msg, *bilan, *enig;
+	
+	fprintf(stderr, "Debut send enigme\n");
 
 	pthread_mutex_lock (&mutex_init);
 	bilan = get_bilan(init, nb_tour);
-	enigme = get_enigme();
-	msg = malloc(sizeof(char)*(strlen(enigme) + strlen(bilan) + 9));
+	fprintf(stderr, "Avant get enigme\n");
+	enig = get_enigme();
+	fprintf(stderr, "Enigme: %s\n", enig);
+	sscanf(enig, "(%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%c)", &enigme->xr, &enigme->yr, &enigme->xb, &enigme->yb,
+			&enigme->xj, &enigme->yj, &enigme->xv, &enigme->yv, &enigme->xc, &enigme->yc, &enigme->c);
+	fprintf(stderr, "Apres sscanf\n");		
+	msg = malloc(sizeof(char)*(strlen(enig) + strlen(bilan) + 9));
 	user = init->user;
 	// sprintf(msg, "TOUR/(2,2,3,4,7,5,6,6,9,3,R)/6(saucisse,3)(brouette,0)/\n");
-	sprintf(msg, "TOUR/%s/%s/\n", enigme, bilan);
+	sprintf(msg, "TOUR/%s/%s/\n", enig, bilan);
 
 	while(user != NULL) {
 		send(user->scom, msg, strlen(msg), 0);
 		user = user->next;
 	}
 	pthread_mutex_unlock (&mutex_init); 
+}
+
+/*
+ * Informer tous les clients de la fin de la phase de reflexion.
+ */
+void fin_reflexion() {
+	fprintf(stderr,"Fin reflexion start...\n");
+	User *tmp;
+	char msg[100];
+	pthread_mutex_lock(&mutex_init);
+	tmp = init->user;
+	sprintf(msg, "FINREFLEXION/\n");
+	while(tmp != NULL) {
+		send(tmp->scom,msg ,strlen(msg), 0);
+		tmp = tmp->next;
+	}
+	pthread_mutex_unlock(&mutex_init);
+	fprintf(stderr,"Fin reflexion end...\n");
 }
 
 /*
@@ -165,9 +192,10 @@ int reflexion() {
 	itv.it_interval.tv_sec = 0;
 	itv.it_value.tv_sec = TEMPS_REFLEXION;
 	itv.it_value.tv_usec = 0; 
-
+	fprintf(stderr,"Initialisation de la phase de reflexion \n");
 	// Informer tout le monde du lancement de la phase de reflexion
 	send_enigme_and_bilan();
+	fprintf(stderr,"Enigme et bilan envoye\n");
 	pthread_mutex_lock(&mutex_phase); 
 	phase = REFLEXION;
 	pthread_mutex_unlock(&mutex_phase);
@@ -186,7 +214,8 @@ int reflexion() {
 	if(over == 0) {
 		// Le temps ecoule sans avoir recu une proposition
 		fprintf(stderr, "Yo tout le monde, la phase de reflexion is over.\n");
-		
+		/* Informer les utilisateurs de la fin de la phase d'encheres */
+		fin_reflexion();
 	} else {
 		// Un client a propose une solution
 		fprintf(stderr, "Un client annonce avoir trouve une solution.\n");
@@ -243,14 +272,6 @@ int enchere() {
 	return 0;
 }
 
-/* 
- * Verifie si la solution proposee resout l'enigme.
- * return 0 si la solution est bonne -1 sinon
- */ 
-int solution_bonne(char* deplacements) {
-	return strlen(deplacements) <= 5 ? 0 : 1;
-}
-
 /*
  * Envoie le message msg a tous les joueurs.
  */
@@ -267,35 +288,65 @@ void send_message(char *msg) {
 
 void end_session() {
     	User *tmp;
-    	char *msg;
+    	char *msg, *bilan;
 		// fprintf(stderr,"Ending session...no enough users\n");
 
     	pthread_mutex_lock (&mutex_init);
-    	msg = get_bilan(init, nb_tour);
+	bilan = get_bilan(init, nb_tour);
+    	msg = malloc(sizeof(char)*strlen(bilan) + 13);    
+    	sprintf(msg, "VAINQUEUR/%s/\n", bilan);
 
-		tmp = init->user;
-		while(tmp != NULL) {
-			send(tmp->scom, msg, strlen(msg), 0);
-			tmp = tmp->next;
-		}
-		vider_session(init);
-		pthread_mutex_unlock (&mutex_init);
-		pthread_mutex_lock (&mutex_joining);
-		vider_session(joining);
-		pthread_mutex_unlock (&mutex_joining);
-		fprintf(stderr, "Fin end session\n");
-		exit(0);
+	tmp = init->user;
+	while(tmp != NULL) {
+		send(tmp->scom, msg, strlen(msg), 0);
+		tmp = tmp->next;
+	}
+	vider_session(init);
+	pthread_mutex_unlock (&mutex_init);
+	pthread_mutex_lock (&mutex_joining);
+	vider_session(joining);
+	pthread_mutex_unlock (&mutex_joining);
+	fprintf(stderr, "Fin end session\n");
+	exit(0);
 }
 
 void start_session() {
 	fprintf(stderr,"Starting session...\n");
 	User *tmp;
-	char msg[100];
+	char* msg, x[3], y[3], c;
+	int i = 0, j= 0;
+	x[2] = y[2] = 0;
 
+	if(is_playing == 1) {
+		fprintf(stderr, "Le jeu a deja commence pas besoin pas besoin d'envoyer session.\n");
+		return;
+	}
+	while(PLATEAU1[i] != '\0') {
+		i++;
+		while(PLATEAU1[i] != ',')
+			x[j++] = PLATEAU1[i++];
+		i++; j = 0;
+		
+		while(PLATEAU1[i] != ',')
+			y[j++] = PLATEAU1[i++];
+		i++; j = 0;
+		c = PLATEAU1[i++];
+		
+		if(c == 'D')
+			plateau->cases[atoi(x)][atoi(y)].d = 1;
+		else if(c == 'H')
+			plateau->cases[atoi(x)][atoi(y)].h = 1;
+		else if(c == 'B')
+			plateau->cases[atoi(x)][atoi(y)].b = 1;
+		else if(c == 'G')
+			plateau->cases[atoi(x)][atoi(y)].g = 1;
+		i++; j = 0;
+	}
 	pthread_mutex_lock(&mutex_init);
 	tmp = init->user;
 	// SESSION/plateau/	(S -> C)
-	sprintf(msg, "SESSION/(3,4,H)(3,4,G)(12,6,H)/\n");
+	msg = malloc(sizeof(char)*strlen(PLATEAU1)+11);
+	sprintf(msg, "SESSION/%s/\n", PLATEAU1);
 	while(tmp != NULL) {
 		send(tmp->scom, msg, strlen(msg), 0);
 		tmp = tmp->next;
@@ -328,6 +379,7 @@ int resolution() {
 	itv.it_value.tv_sec = TEMPS_RESOLUTION;
 	itv.it_value.tv_usec = 0; 
 	dep = malloc(sizeof(char) * 10);
+	message = malloc(sizeof(char) * 10);
 
 	fprintf(stderr, "[Serveur] 3 Debut de la phase de resolution\n");
 
@@ -343,7 +395,10 @@ int resolution() {
 		sigdelset(&set, SIGINT);
 		sigdelset(&set, SIGUSR1);
 		sigdelset(&set, SIGALRM);
+		fprintf(stderr, "***************** Je vais sigsuspend.\n");
 		sigsuspend(&set);
+		
+		fprintf(stderr, "Apres sigsuspend dans la resolution\n");
 		
 		pthread_mutex_lock(&mutex_data_sol);
 		time_out = is_timeout_res;
@@ -355,13 +410,7 @@ int resolution() {
 			enchere = get_le_moins_offrant(init_enchere);
 			pthread_mutex_unlock(&mutex_enchere);
 
-			if(enchere == NULL)
-				return 0;
-			pthread_mutex_lock(&mutex_data_sol);
-			scom = scom_actif = enchere->scom;
-			coups = coups_actif = enchere->mise;
-			pthread_mutex_unlock(&mutex_data_sol);
-			
+						
 			pthread_mutex_lock(&mutex_init);
 			tmp = cherche_user(init, scom);
 			pthread_mutex_unlock(&mutex_init);
@@ -370,7 +419,17 @@ int resolution() {
 			sprintf(message, "TROPLONG/%s/\n", tmp->username);
 			
 			send_message(message);
+			fprintf(stderr, "Trop lLONG\n");
 			
+			if(enchere == NULL) {
+				fprintf(stderr, "Y a plus d'enchere\n");
+				break;
+			}
+			pthread_mutex_lock(&mutex_data_sol);
+			scom = scom_actif = enchere->scom;
+			coups = coups_actif = enchere->mise;
+			pthread_mutex_unlock(&mutex_data_sol);
+
 		} else {
 			pthread_mutex_lock(&mutex_data_sol);
 			scom = scom_actif;
@@ -379,8 +438,10 @@ int resolution() {
 			strcpy(dep, depla_actif);
 			is_timeout_res = 0;
 			pthread_mutex_unlock(&mutex_data_sol);
+			fprintf(stderr, "--------------- 1\n");
 			
-			if(solution_bonne(dep) == 0) {
+			// Enigme* enig = copy_of_enigme(enigme);
+			if(solution_bonne(plateau, enigme, dep)) {
 				// BONNE/	(S -> C)	send_bonne_solution();
 				pthread_mutex_lock(&mutex_init);
 				tmp = cherche_user(init, scom);
@@ -395,30 +456,39 @@ int resolution() {
 				message = realloc(message, strlen(tmp->username) + 9);
 				sprintf(message, "BONNE/%s/\n", tmp->username);
 				send_message(message);
-				
+				fprintf(stderr, "[resolution] Envoie bonne: %s", message);
+				// free(enig);
 				return 0;
 			} else {
 				// MAUVAISE/user/	(S -> C)
 				// Rechercher le prochain utilisateur dans la liste des parieurs
 				// send_mauvaise(username);
 				pthread_mutex_lock(&mutex_enchere);
+				fprintf(stderr, "-------------- 2 avant le moins offrant\n");
 				enchere = get_le_moins_offrant(init_enchere);
+				fprintf(stderr, "---------------------------- 2 apres le moin offrant\n");
 				pthread_mutex_unlock(&mutex_enchere);
+								
+				pthread_mutex_lock(&mutex_init);
+				tmp = cherche_user(init, scom);
+				pthread_mutex_unlock(&mutex_init);
 
-				if(enchere == NULL)
-					return 0;
+				message = realloc(message, strlen(tmp->username) + 11);
+				sprintf(message, "MAUVAISE/%s/\n", tmp->username);
+				send_message(message);
+				fprintf(stderr, "++++++++++++++++++ MAUVAISE\n");
+
+				if(enchere == NULL) {
+					fprintf(stderr, "Y a plus d'encheres 2\n");
+					break;
+				}
+				
 				pthread_mutex_lock(&mutex_data_sol);
 				scom = scom_actif = enchere->scom;
 				coups = coups_actif = enchere->mise;
 				pthread_mutex_unlock(&mutex_data_sol);
-				
-				pthread_mutex_lock(&mutex_init);
-				tmp = cherche_user(init, scom);
-				pthread_mutex_unlock(&mutex_init);
-			
-				message = realloc(message, strlen(tmp->username) + 11);
-				sprintf(message, "MAUVAISE/%s/\n", tmp->username);
-				send_message(message);
+
+				// free(enig);
 			}
 		}
 	} 
@@ -434,24 +504,6 @@ int resolution() {
 
 	fprintf(stderr, "[Serveur] 3 Fin de la phase de resolution\n");
 	return 0;
-}
-
-/*
- * Informer tous les clients de la fin de la phase de reflexion.
- */
-void fin_reflexion() {
-	fprintf(stderr,"Fin reflexion start...\n");
-	User *tmp;
-	char msg[100];
-	pthread_mutex_lock(&mutex_init);
-	tmp = init->user;
-	sprintf(msg, "FINREFLEXION/\n");
-	while(tmp != NULL) {
-		send(tmp->scom,msg ,strlen(msg), 0);
-		tmp = tmp->next;
-	}
-	pthread_mutex_unlock(&mutex_init);
-	fprintf(stderr,"Fin reflexion end...\n");
 }
 
 void go() {
@@ -520,14 +572,13 @@ void go() {
 
 		if(is_playing == 0) {
 			pthread_mutex_lock(&mutex_nb_tour);
-	 		nb_tour = 1;
+	 		nb_tour = 0;
 			pthread_mutex_unlock(&mutex_nb_tour);
 		}
 		pthread_mutex_lock(&mutex_is_timeout); 
 		is_timeout_ref = 0;
 		pthread_mutex_unlock(&mutex_is_timeout);
 
-		is_playing = 1;
 		fprintf(stderr, "Starting... in 5sec\n");
 		sleep(5);
 
@@ -549,21 +600,23 @@ void go() {
 		pthread_mutex_lock(&mutex_nb_tour);
 		nb_tour++;
 		pthread_mutex_unlock(&mutex_nb_tour);
-	       
+	       fprintf(stderr,"Avant start\n");
 		start_session();
-		
+		 fprintf(stderr,"Apres start\n");
+		is_playing = 1;
+
 		/* Phase de reflexion */
 		// fprintf(stderr, "Before reflexion\n");
 		reflexion();
 
-		/* Informer les utilisateurs de la fin de la phase d'encheres */
-		fin_reflexion();
+
 
 		/* Phase d'encheres */
 		enchere();
 
 		/* Phase de resolution */
 		resolution();
+		fprintf(stderr, "[go] End tour.\n");
 	}
 }
 
@@ -612,7 +665,7 @@ void send_il_enchere(char* username, int scom, int coups) {
 
 	// Je fais pas de lock parce que je l'ai locke
 	tmp = init->user;
-	sprintf(msg, "ILENCHERE/%s/%d/\n", username, coups);
+	sprintf(msg, "NOUVELLEENCHERE/%s/%d/\n", username, coups);
 	while(tmp != NULL) {
 		// Notifier les clients de l'enchere du client
 		if(tmp->scom != scom)
@@ -684,9 +737,6 @@ int connexion(int scom, char* buff) {
 	User *user = NULL;
 	name = calloc(50, sizeof(char));
 
-	
-
-
 	if(size < 8) {
 		fprintf(stderr, "[Serveur] Yo client i don't this command: '%s' (is it in the protocol ?)\n", buff);
 		send(scom, "Hey client i cannot connect you.\n", 34, 0);
@@ -700,6 +750,19 @@ int connexion(int scom, char* buff) {
 		send(scom, "Command not well formed.\n", 27, 0);
 		return -1;
 	}
+
+	pthread_mutex_lock (&mutex_init); 
+	user = init->user;
+	while(user != NULL) {
+		if(strcmp(name, user->username) == 0) {
+			pthread_mutex_unlock (&mutex_init); 
+			send(scom, "ERREUR/Username already in use/\n", 32, 0);
+			return -1;
+		}
+		user = user->next;
+	}
+	pthread_mutex_unlock (&mutex_init); 
+	user = NULL;
 
 	if((user = create_user(name, scom)) == NULL) {
 		fprintf(stderr, "Cannot create user. Maybe there is no memory.\n");
@@ -767,10 +830,13 @@ int deconnexion(int scom, char* buff) {
 		tmpU = cherche_user(joining, user->scom);
 		if(tmpU != NULL)
 			delete_user(tmpU, joining);
-		pthread_mutex_unlock (&mutex_joining);
-		
-	}	
+		pthread_mutex_unlock (&mutex_joining);	
+	}
 
+	// Supprimer les encheres du joueur qui vient de se deconnecter.	
+	pthread_mutex_lock (&mutex_enchere);
+	delete_enchere(cherche_enchere(scom, init_enchere), init_enchere);
+	pthread_mutex_unlock (&mutex_enchere);
 	fprintf(stderr, "[Serveur] Fin deconnexion.\n");
 	return 0;	
 }
@@ -894,7 +960,7 @@ void client_enchere(int scom, char* buff) {
 			}
 			fprintf(stderr, "Tu encheres \n");
 			// TUENCHERE/	(S -> C)
-			send(scom, "TUENCHERE/\n", 11, 0);
+			send(scom, "VALIDATION/\n", 12, 0);
 			// ILENCHERE/user/coups/	(S -> C)
 			fprintf(stderr, "Il  enchere \n");
 			send_il_enchere(user->username, scom, coups);
@@ -915,13 +981,13 @@ void client_enchere(int scom, char* buff) {
 				}
 				fprintf(stderr, "Tu encheres \n");
 				// TUENCHERE/	(S -> C)
-				send(scom, "TUENCHERE/\n", 11, 0);
+				send(scom, "VALIDATION/\n", 12, 0);
 				// ILENCHERE/user/coups/	(S -> C)
 				fprintf(stderr, "Il  enchere \n");
 				send_il_enchere(user->username, scom, coups);
 			} else {
 				// ECHECENCHERE/user/	(S -> C)
-				sprintf(tmp, "ECHECENCHERE/%s/\n", user->username);
+				sprintf(tmp, "ECHEC/%s/\n", user->username);
 				send(scom, tmp, strlen(tmp), 0);
 			}
 		}
@@ -1044,13 +1110,26 @@ void* handle_client(void* arg) {
 			break;
 		case 4: /* TROUVE  */
 			client_trouve(scom, buff);
+			fprintf(stderr, "[Handle_client] Why are you still calling this old protocol ?\n");
 			break;
 		case 5: /* ENCHERE */
 			client_enchere(scom, buff);
 			break;
-		case 6: /* PHASE RESOLUTION */
-			client_resolution(scom, buff);
+		case 6: /* SOLUTION */
+		{	
+			pthread_mutex_lock(&mutex_phase); 
+			if(phase == REFLEXION) {
+				pthread_mutex_unlock(&mutex_phase);
+				client_trouve(scom, buff);
+			} else if(phase == RESOLUTION) {
+				pthread_mutex_unlock(&mutex_phase);
+				client_resolution(scom, buff);
+			} else {
+				fprintf(stderr, "[Handle_client] Cmd: %s recu au phase: %d\n", buff, phase);
+				pthread_mutex_unlock(&mutex_phase);
+			}
 			break;
+		}
 		case 7:
 			fprintf(stderr, "[Serveur] Yeoman %s\n", buff);
 			client_chat(scom, buff);
@@ -1102,6 +1181,7 @@ void* listen_to_clients(void* arg) {
 int main() {
 	
 	pthread_t t_id;
+	int i,j;
 	
 	main_pid = getpid();
 	init = create_session(0);
@@ -1120,6 +1200,36 @@ int main() {
 	is_timeout_enc = 0;
 	is_timeout_res = 0;
     	pthread_mutex_unlock(&mutex_is_timeout);
+    	plateau = malloc(sizeof(Plateau));
+    	enigme = malloc(sizeof(Enigme));
+    	R = 10;
+    	B = 11;
+    	J = 12;
+    	V = 13;
+    	for(i=0;i<NB_CASES; i++){
+    		for(j=0;j<NB_CASES;j++) {
+    			plateau->cases[i][j].h = 0;
+    			plateau->cases[i][j].d = 0;
+    			plateau->cases[i][j].b = 0;
+    			plateau->cases[i][j].g = 0;
+    			
+    			if(i == 0)
+    				plateau->cases[i][j].h = 1;
+    			if(i == NB_CASES-1)
+    				plateau->cases[i][j].b = 1;
+    			if(j == 0)
+    				plateau->cases[i][j].g = 1;
+    			else if(j == NB_CASES - 1)
+    				plateau->cases[i][j].d = 1;
+    		}
+    	}
+    	enigme->xr = enigme->yr = -1;
+    	enigme->xb = enigme->yb = -1;
+    	enigme->xj = enigme->yj = -1;
+    	enigme->xv = enigme->yv = -1;
+    	enigme->c = -1;
+    	
+    	// plateau->cases = malloc(sizeof(caze)*NB*)
 
 	if (pthread_create(&t_id, NULL, listen_to_clients, NULL) != 0) {
 		fprintf(stderr, "[Serveur] Erreur thread.\n");

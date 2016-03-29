@@ -18,7 +18,7 @@
 #define		SCORE_OBJ			10
 
 #define		TEMPS_REFLEXION	60 //300		/* secondes */
-#define		TEMPS_ENCHERE		60 // 30		/* secondes */
+#define		TEMPS_ENCHERE		30 // 30		/* secondes */
 #define		TEMPS_RESOLUTION	60 // 60		/* secondes */
 
 #define		SERVER_PORT		2016
@@ -27,6 +27,9 @@
 
 extern int	USERS_CPT;
 extern int	SESSIONS_CPT;
+extern char*	ENIGME1;
+extern char*	PLATEAU1;
+extern int	R, B, J, V;
 
 /* Donnees d'un utilisateur */
 typedef struct _user {
@@ -45,10 +48,26 @@ typedef struct _enchere {
 	struct _enchere*	next;
 } Enchere;
 
+typedef struct _caze {
+	int				h;
+	int 				d;
+	int 				b;
+	int 				g;
+} caze;
+
 /* Plateau du jeu (d'une session) */
 typedef struct _plateau {
-	int				cases[NB_CASES][NB_CASES];
+	caze			cases[NB_CASES][NB_CASES];
 } Plateau;
+
+typedef struct _enigme {
+	int				xr, yr;
+	int 				xb, yb;
+	int 				xv, yv;
+	int 				xj, yj;
+	int 				xc, yc;
+	char				c;
+} Enigme;
 
 /* Donnees d'une session */
 typedef struct _session {
@@ -73,6 +92,7 @@ void			free_user(User* user);
 
 Enchere* 	create_enchere(int scom, int mise);
 int 			add_enchere(Enchere *enchere, Enchere *init);
+Enchere*	cherche_enchere(int scom, Enchere* init);
 Enchere*	delete_enchere(Enchere* enchere, Enchere* init);
 void			free_enchere(Enchere* enchere);
 void			vider_enchere(Enchere* init);
@@ -93,5 +113,7 @@ int 			get_username(char *buff, char *username);
 int 			get_username_and_coups(char *buff, char *username, int *coups);
 int 			get_username_and_deplacements(char* buff, char* username, char* deplacements, int coups);
 void			vider_session(Session *joining);
-char* 			get_bilan(Session* session, int nb_tour);
-char*			get_enigme();
+char* 		get_bilan(Session* session, int nb_tour);
+char*		get_enigme();
+Enigme*		copy_of_enigme(Enigme *enigme);
+int 			solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements);
