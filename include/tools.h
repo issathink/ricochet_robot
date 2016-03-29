@@ -15,7 +15,7 @@
 #include <pthread.h>
 
 #define		NB_CASES			16
-#define		SCORE_OBJ			100
+#define		SCORE_OBJ			10
 
 #define		TEMPS_REFLEXION	60 //300		/* secondes */
 #define		TEMPS_ENCHERE		60 // 30		/* secondes */
@@ -93,3 +93,5 @@ int 			get_username(char *buff, char *username);
 int 			get_username_and_coups(char *buff, char *username, int *coups);
 int 			get_username_and_deplacements(char* buff, char* username, char* deplacements, int coups);
 void			vider_session(Session *joining);
+char* 			get_bilan(Session* session, int nb_tour);
+char*			get_enigme();

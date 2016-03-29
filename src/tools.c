@@ -422,3 +422,28 @@ char* grow_char(char* old, char* to_add) {
 	strcat(old, to_add);
 	return old;
 }
+
+char* get_bilan(Session* session, int nb_tour) {
+		User *tmp;
+   		char buff[70], *msg;
+
+    	sprintf(buff, "VAINQUEUR/%d", nb_tour);
+    	msg = malloc(sizeof(char)*(strlen(buff)+1));
+    	strcpy(msg, buff);
+    	memset(buff, 0, 70);
+
+    	tmp = session->user;
+    	while(tmp != NULL) {
+    		sprintf(buff, "(%s,%d)", tmp->username, tmp->score);
+        	msg = grow_char(msg, buff);
+			tmp = tmp->next;
+		}
+		fprintf(stderr, ">>>>> Bilan: %s\n", msg);
+
+		return msg;
+}
+
+char* get_enigme() {
+	// Nah we are returning this for the moment
+	return "(2,2,3,4,7,5,6,6,9,3,R)";
+}

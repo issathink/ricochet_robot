@@ -3,24 +3,24 @@
 /* Variable pour stocker toutes les sessions en cours */
 pthread_mutex_t mutex_init = 		PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_joining = 	PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_phase = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_phase = 		PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_nb_tour = 	PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_is_timeout = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_is_timeout = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_ref = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_enc = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_sol = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_cond = 		PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_enchere =	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_enchere =		PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_session = 		PTHREAD_COND_INITIALIZER; 
 
 Session 	*init, *joining;
 int 		session_started;
-int		is_playing;
+int			is_playing;
 
 int 		sock;
 int 		nb_tour = 1;
-PHASE 	phase;
-pid_t 	main_pid;
+PHASE 		phase;
+pid_t 		main_pid;
 
 int 		is_timeout_ref;
 int 		is_timeout_enc;
@@ -32,9 +32,10 @@ char		username_ref[50];
 
 int 		scom_actif;
 int 		coups_actif;
-char*	depla_actif;
-Enchere* init_enchere;
+char*		depla_actif;
+Enchere* 	init_enchere;
 char		username_actif[50];
+int 		game_over;
 
 /*
  * Handler de signal pour indiquer la fin de la phase de reflexion.
@@ -82,26 +83,20 @@ void handler_resolution(int sig) {
  * Envoie a chaque client le score des clients connectes apres un tour.
  */
 void send_enigme_and_bilan() {
-	User *tmp, *user;
-	char buff[100], *temp;
-	temp = malloc(sizeof(char)*50);
+	User* user;
+	char *msg, *bilan, *enigme;
 
-	pthread_mutex_lock (&mutex_init); 
+	pthread_mutex_lock (&mutex_init);
+	bilan = get_bilan(init, nb_tour);
+	enigme = get_enigme();
+	msg = malloc(sizeof(char)*(strlen(enigme) + strlen(bilan) + 9));
 	user = init->user;
-	while(user != NULL) {
-		// sprintf(temp, "LIST/%s/%d/\n", user->username, user->score);
-		// strcat(buff, temp);
-		
-		user = user->next;
-		// Faire la chaine qui contiendra le score et le nom de tous les utilisateurs
-	}
+	// sprintf(msg, "TOUR/(2,2,3,4,7,5,6,6,9,3,R)/6(saucisse,3)(brouette,0)/\n");
+	sprintf(msg, "TOUR/%s/%s/\n", enigme, bilan);
 
-	tmp = init->user;
-	sprintf(buff, "TOUR/(2,2,3,4,7,5,6,6,9,3,R)/6(saucisse,3)(brouette,0)/\n");
-	while(tmp != NULL) {
-			
-		send(tmp->scom, buff, strlen(buff), 0);
-		tmp = tmp->next;
+	while(user != NULL) {
+		send(user->scom, msg, strlen(msg), 0);
+		user = user->next;
 	}
 	pthread_mutex_unlock (&mutex_init); 
 }
@@ -270,6 +265,45 @@ void send_message(char *msg) {
 	pthread_mutex_unlock (&mutex_init);
 }
 
+void end_session() {
+    	User *tmp;
+    	char *msg;
+		// fprintf(stderr,"Ending session...no enough users\n");
+
+    	pthread_mutex_lock (&mutex_init);
+    	msg = get_bilan(init, nb_tour);
+
+		tmp = init->user;
+		while(tmp != NULL) {
+			send(tmp->scom, msg, strlen(msg), 0);
+			tmp = tmp->next;
+		}
+		vider_session(init);
+		pthread_mutex_unlock (&mutex_init);
+		pthread_mutex_lock (&mutex_joining);
+		vider_session(joining);
+		pthread_mutex_unlock (&mutex_joining);
+		fprintf(stderr, "Fin end session\n");
+		exit(0);
+}
+
+void start_session() {
+	fprintf(stderr,"Starting session...\n");
+	User *tmp;
+	char msg[100];
+
+	pthread_mutex_lock(&mutex_init);
+	tmp = init->user;
+	// SESSION/plateau/	(S -> C)
+	sprintf(msg, "SESSION/(3,4,H)(3,4,G)(12,6,H)/\n");
+	while(tmp != NULL) {
+		send(tmp->scom, msg, strlen(msg), 0);
+		tmp = tmp->next;
+	}
+	pthread_mutex_unlock(&mutex_init);
+	fprintf(stderr,"[Serveur] End start session function.\n");
+}
+
 /*
  * Etape de la resolution d'un tour de l'enigme.
  */
@@ -351,6 +385,11 @@ int resolution() {
 				pthread_mutex_lock(&mutex_init);
 				tmp = cherche_user(init, scom);
 				tmp->score++;
+				if(tmp->score >= SCORE_OBJ) {
+					end_session();
+					game_over = 1;
+				}
+
 				pthread_mutex_unlock(&mutex_init);
 			
 				message = realloc(message, strlen(tmp->username) + 9);
@@ -397,42 +436,6 @@ int resolution() {
 	return 0;
 }
 
-void end_session() {
-    	User *user, *tmp;
-    	char buff[63];
-	fprintf(stderr,"Ending session...no enough users\n");
-
-    	pthread_mutex_lock (&mutex_init);
-    	tmp = init->user;
-    	while(tmp != NULL) {
-        	// sprintf(buff, "FINRESO/%s/\n", tmp->username);
-        	// send(tmp->scom, buff, strlen(buff), 0);
-        	user = tmp;
-		tmp = tmp->next;
-		delete_user(user, init);
-	}
-
-	pthread_mutex_unlock (&mutex_init);
-	fprintf(stderr, "Fin endsession\n");
-}
-
-void start_session() {
-	fprintf(stderr,"Starting session...\n");
-	User *tmp;
-	char msg[100];
-
-	pthread_mutex_lock(&mutex_init);
-	tmp = init->user;
-	// SESSION/plateau/	(S -> C)
-	sprintf(msg, "SESSION/(3,4,H)(3,4,G)(12,6,H)/\n");
-	while(tmp != NULL) {
-		send(tmp->scom, msg, strlen(msg), 0);
-		tmp = tmp->next;
-	}
-	pthread_mutex_unlock(&mutex_init);
-	fprintf(stderr,"[Serveur] End start session function.\n");
-}
-
 /*
  * Informer tous les clients de la fin de la phase de reflexion.
  */
@@ -456,18 +459,20 @@ void go() {
 	while(1) {
 		/* Rajouter les utilisateurs qui attendent */
 		int size = 0;
+		User *user;
 		// fprintf(stderr, "While go\n");
 		pthread_mutex_lock(&mutex_data_sol);
 		coups_actif = -1;
+		scom_actif = -1;
 		pthread_mutex_unlock(&mutex_data_sol);
 		pthread_mutex_lock(&mutex_data_ref);
 		coups_ref = -1;
+		scom_ref = -1;
 		pthread_mutex_unlock(&mutex_data_ref);
 
-		
 		pthread_mutex_lock (&mutex_init);
 		pthread_mutex_lock (&mutex_joining);		
-		User *user = joining->user;
+		user = joining->user;
 
 		while(user != NULL) {
 			add_user(create_user(user->username, user->scom), init); 
@@ -499,8 +504,8 @@ void go() {
 			// fprintf(stderr, "Je vais etre bloque\n");
 			pthread_cond_wait(&cond_session, &mutex_cond);
 			pthread_mutex_unlock (&mutex_cond);
-			end_session();
-		    	continue;
+			// end_session();
+		    continue;
 		} else if(size < 2) {
 			pthread_mutex_lock (&mutex_cond);			
 			// fprintf(stderr, "Je vais etre bloque\n");
@@ -513,9 +518,11 @@ void go() {
 
 		// fprintf(stderr, "Let's go\n");
 
-		pthread_mutex_lock(&mutex_nb_tour);
-	 	nb_tour = 1;
-		pthread_mutex_unlock(&mutex_nb_tour);
+		if(is_playing == 0) {
+			pthread_mutex_lock(&mutex_nb_tour);
+	 		nb_tour = 1;
+			pthread_mutex_unlock(&mutex_nb_tour);
+		}
 		pthread_mutex_lock(&mutex_is_timeout); 
 		is_timeout_ref = 0;
 		pthread_mutex_unlock(&mutex_is_timeout);
@@ -523,6 +530,20 @@ void go() {
 		is_playing = 1;
 		fprintf(stderr, "Starting... in 5sec\n");
 		sleep(5);
+
+		// Attente des retartadaires
+		pthread_mutex_lock (&mutex_init);
+		pthread_mutex_lock (&mutex_joining);		
+		user = joining->user;
+		while(user != NULL) {
+			add_user(create_user(user->username, user->scom), init); 
+			user = user->next;
+		}
+		size = init->size;
+		vider_session(joining);
+		pthread_mutex_unlock (&mutex_joining);
+		pthread_mutex_unlock (&mutex_init);
+
 		fprintf(stderr, "Go...\n");
 
 		pthread_mutex_lock(&mutex_nb_tour);
@@ -712,7 +733,7 @@ int connexion(int scom, char* buff) {
  */
 int deconnexion(int scom, char* buff) {
 	char username[50];
-	char tmp[63];
+	char tmp[65];
 	User *user, *tmpU;
 
 	if(get_username(buff, username) == -1) {
@@ -727,7 +748,7 @@ int deconnexion(int scom, char* buff) {
 	while(tmpU != NULL) {
 		if(scom != tmpU->scom) {
 			// SORTI/user/	(S -> C)
-			sprintf(tmp, "SORTI/%s/\n", username);
+			sprintf(tmp, "DECONNEXION/%s/\n", username);
 			send(tmpU->scom, tmp, strlen(tmp), 0);
 			fprintf(stderr, "J'envoie a l'utilisateur: %s, tmp: %s\n", tmpU->username, tmp);		
 		} else {			
@@ -1089,6 +1110,7 @@ int main() {
 	coups_actif = -1;
 	coups_ref = -1;
 	is_playing = 0;
+	game_over = 0;
 	depla_actif = malloc(sizeof(char) * 10);
 	pthread_mutex_lock(&mutex_phase); 
 	phase = UNDEF;
