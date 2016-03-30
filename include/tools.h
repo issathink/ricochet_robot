@@ -91,13 +91,13 @@ void 		affiche_user(User *user);
 void			free_user(User* user);
 
 Enchere* 	create_enchere(int scom, int mise);
-int 			add_enchere(Enchere *enchere, Enchere *init);
+Enchere*	add_enchere(Enchere *enchere, Enchere *init);
 Enchere*	cherche_enchere(int scom, Enchere* init);
 Enchere*	delete_enchere(Enchere* enchere, Enchere* init);
 void			free_enchere(Enchere* enchere);
 void			vider_enchere(Enchere* init);
 Enchere* 	get_le_moins_offrant(Enchere *init);
-
+void                 afficher_enchere(Enchere* init);
 
 /* Manipulation des sessions */
 Session*		create_session();
@@ -117,3 +117,4 @@ char* 		get_bilan(Session* session, int nb_tour);
 char*		get_enigme();
 Enigme*		copy_of_enigme(Enigme *enigme);
 int 			solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements);
+void                 afficher_plateau(Plateau* plateau);

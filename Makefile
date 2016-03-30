@@ -28,7 +28,7 @@ test-serveur: $(BIN)serveur
 clean: 
 	rm -rf $(OBJ)*.o $(BIN)*
 
-$(BIN)%: $(OBJ)serveur.o  $(OBJ)tools.o
+$(BIN)%: $(OBJ)serveur.o  $(OBJ)tools.o $(OBJ)resolution.o
 	@if [ -d $(BIN) ]; then : ; else mkdir $(BIN); fi
 	$(CC) $(LFLAGS) -o $@ $^
 

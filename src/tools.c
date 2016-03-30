@@ -2,7 +2,8 @@
 
 int	USERS_CPT 		= 0;
 int	SESSIONS_CPT 	= 0;
-char*PLATEAU1		= "(0,3,D)(0,11,D)(0,13,B)(1,12,D)(2,5,D)(2,5,B)(2,9,D)(2,9,B)(4,0,B)(4,2,D)(4,2,H)(4,15,H)(5,7,G)(5,7,B)(5,14,G)(5,14,B)(6,1,G)(6,1,H)(6,11,H)(6,11,D)(7,7,G)(7,7,H)(7,8,H)(7,8,D)(8,7,G)(8,7,B)(8,8,B)(8,8,D)(8,5,H)(8,5,D)(9,1,D)(9,1,B)(9,12,D)(9,15,B)(10,4,G)(10,4,B)(11,0,B(12,9,H)(12,9,G)(13,5,D)(13,5,H)(13,14,G)(13,14,B)(14,3,G)(14,3,H)(14,11,D)(14,11,B)(15,14,G)(15,6,D)";
+char*PLATEAU1		= "(0,3,D)(0,11,D)(0,13,B)(1,12,D)(2,5,D)(2,5,B)(2,9,D)(2,9,B)(4,0,B)(4,2,D)(4,2,H)(4,15,H)(5,7,G)(5,7,B)(5,14,G)(5,14,B)(6,1,G)(6,1,H)(6,11,H)(6,11,D)(7,7,G)(7,7,H)(7,8,H)(7,8,D)(8,7,G)(8,7,B)(8,8,B)(8,8,D)(8,5,H)(8,5,D)(9,1,D)(9,1,B)(9,12,D)(9,15,B)(10,4,G)(10,4,B)(11,0,B)(12,9,H)(12,9,G)(13,5,D)(13,5,H)(13,14,G)(13,14,B)(14,3,G)(14,3,H)(14,11,D)(14,11,B)(15,14,G)(15,6,D)";
+// 13,5,D
 char* ENIGME1 		= "(13,5,9,12,6,1,5,14,14,11,R)";
 int 	R, B, J, V;
 
@@ -14,10 +15,8 @@ int 	R, B, J, V;
 User *create_user(char *username, int scom) {
 	User *user = malloc(sizeof(User));
 	if(user == NULL) return NULL;
-
-	user->username = malloc(sizeof(char)*(strlen(username)+1));
+	user->username = calloc((strlen(username)+1), sizeof(char));
 	if(user == NULL) return NULL;
-
 	strcpy(user->username, username);
 	user->next = NULL;
 	user->id = ++USERS_CPT;
@@ -29,8 +28,8 @@ User *create_user(char *username, int scom) {
 }
 
 int add_user(User *user, Session *session) {
+        
 	User *tmp = session->user;
-
 	if(user == NULL || session == NULL)
 		return -1;
 
@@ -39,29 +38,25 @@ int add_user(User *user, Session *session) {
 		session->size++;
 		return 0;
 	}
-
 	while(tmp->next != NULL)
 		tmp = tmp->next;
 	tmp->next = user;
 	session->size++;
+	affiche_session(session);
 
 	return 0;
 }
 
-
 User* delete_user(User *user, Session *session) {
 	Session *tmp = session;
 	User* _user, *head = session->user;
-
 	if(session->size == 0 || user == NULL || session == NULL) 
-		return NULL;
-	
+		return NULL;	
 	if(tmp->user->id == user->id) {
 		session->user = session->user->next;
 		session->size--;
 		return user;
 	}
-	
 	_user = tmp->user->next;
 	while(_user != NULL) {
 		if(user->id == _user->id) {
@@ -99,40 +94,41 @@ Enchere* create_enchere(int scom, int mise) {
 		return NULL;
 	enchere->scom = scom;
 	enchere->mise = mise;
+	enchere->next = NULL;
 	return enchere;
 }
 
-int add_enchere(Enchere *enchere, Enchere *init) {
-	Enchere* tmp = init, *ench;
 
+Enchere* add_enchere(Enchere *enchere, Enchere *init) {
+	Enchere* tmp = init, *ench;
 	if(enchere == NULL)
-		return -1;
+		return init;
 		
 	ench = cherche_enchere(enchere->scom, init);
 	if(ench != NULL) {
 		ench->mise = enchere->mise;
-		return 0;
+		return init;
 	}
-	
-
 	if(init == NULL) {
 		init = enchere;
-		return 0;
+		return init;
 	}
 
 	while(tmp->next != NULL)
 		tmp = tmp->next;
 	tmp = enchere;
-	return 0;
+	
+	return init;
 }
 
 Enchere* cherche_enchere(int scom, Enchere* init) {
 	Enchere *tmp;
-	if(init == NULL)
+	if(init == NULL) {
 		return NULL;
+        }
 		
 	tmp = init;
-	while(tmp->next != NULL) {
+	while(tmp != NULL) {
 		if(tmp->scom == scom)
 			return tmp;
 		tmp = tmp->next;
@@ -145,17 +141,19 @@ Enchere* delete_enchere(Enchere* enchere, Enchere* init) {
 
 	if(init == NULL || enchere == NULL) return NULL; 
 
-	if(init->next == NULL && init->scom == enchere->scom)
-		return init;
+	if(init->next == NULL && init->scom == enchere->scom) {
+	        tmp = init;
+	        init = NULL;
+		return tmp;
+	}
 	if(init->next == NULL)
 		return NULL;
 
 	if(init->scom == enchere->scom) {
 		tmp = init;
 		init = init->next;
-		return init;
+		return tmp;
 	}
-
 	tmp = init->next;
 	_ench = init;
 	while(tmp != NULL) {
@@ -163,12 +161,22 @@ Enchere* delete_enchere(Enchere* enchere, Enchere* init) {
 			_ench->next = tmp->next;
 			return tmp;
 		}
-
 		_ench = tmp;
 		tmp = tmp->next;
 	}
-
 	return NULL;
+}
+
+void afficher_enchere(Enchere* init) {
+        Enchere* tmp = init;
+        if(init == NULL) {
+                fprintf(stderr, ">>> Pas d'enchere ???\n");
+                return;
+        }
+        while(tmp != NULL) {
+                fprintf(stderr, ".............. scom: %d mise: %d ...............\n", tmp->scom, tmp->mise);
+                tmp = tmp->next;
+        }
 }
 
 void free_enchere(Enchere* enchere) {
@@ -181,25 +189,21 @@ void free_enchere(Enchere* enchere) {
  */
 Enchere* get_le_moins_offrant(Enchere *init) {
 	Enchere* tmp = init, *ench;
-
 	if(init == NULL)
 		return NULL;
-
 	ench = tmp;
-
 	while(tmp != NULL) {
 		if(ench->mise > tmp->mise) {
 			ench = tmp;
 		}
+		tmp = tmp->next;
 	}
-
 	return delete_enchere(ench, init);
 }
 
 
 Session* create_session(int countdown) {
 	Session* session = malloc(sizeof(Session));
-	
 	if(session == NULL) return NULL;
 	session->plateau = NULL;
 	session->next = NULL;
@@ -207,22 +211,18 @@ Session* create_session(int countdown) {
 	session->countdown = countdown;
 	session->size = 0;
 	session->id = ++SESSIONS_CPT;
-
 	return session;
 }
 
 int add_session(Session *new, Session *list) {
 	Session *tmp = list;
-
 	if(tmp->next == NULL) {
 		tmp->next = new;
 		return 0;
 	}
-
 	while(tmp->next != NULL)
 		tmp = tmp->next;
 	tmp->next = new;
-
 	return 0;
 }
 
@@ -272,12 +272,10 @@ void affiche_session(Session *session) {
 void affiche_sessions(Session *head) {
 	Session *tmp = head;
 	fprintf(stderr, "/******************* Toutes les sessions: ***************/\n");
-	
 	while(tmp != NULL) {
 		affiche_session(tmp);
 		tmp = tmp->next;
 	}
-
 	fprintf(stderr, "/********************************************************/\n");
 }
 
@@ -308,13 +306,11 @@ int decode_header(char *str) {
  */
 User* cherche_user(Session* session, int scom) {
 	User *tmp = session->user;
-
 	if(session->size <= 0 || tmp == NULL)
 		return NULL; 
-
 	while(tmp != NULL) {
 		if(tmp->scom == scom) {
-			fprintf(stderr, "Jai trouve scom: %d, username: %s\n", tmp->scom, tmp->username);		
+			// fprintf(stderr, "Jai trouve scom: %d, username: %s\n", tmp->scom, tmp->username);		
 			return tmp;
 		}
 		tmp = tmp->next;
@@ -336,13 +332,11 @@ int get_username(char* buff, char* username) {
 	i++;
 	if(i == size || i == size - 1)
 		return -1;
-
 	while(buff[i] != '/')
 		name[j++] = buff[i++];
 	name[j] = '\0';
 	if(j < 1)
 		return -1;
-	
 	strcpy(username, name);
 
 	return 0;
@@ -395,7 +389,7 @@ int get_username_and_deplacements(char* buff, char* username, char* deplacements
 		deplacements[j++] = buff[i++];
 	deplacements[j] = '\0';
 	
-	fprintf(stderr, "Cest avant deplacements qui ne crash pas j: %d.\n", j);
+	// fprintf(stderr, "Cest avant deplacements qui ne crash pas j: %d.\n", j);
 	if(j < 1) return -1;
 	else if(j > (coups*2+1)) return -2;
 
@@ -409,8 +403,10 @@ void vider_session(Session *joining) {
 	User *user = joining->user;
 	User *tmp;
 
-	if(joining == NULL)
+	if(joining == NULL) {
+	        fprintf(stderr, "Why joining is NULL ???\n");
 		return;
+	}
 	
 	while(user != NULL) {
 		tmp = delete_user(user, joining);
@@ -436,6 +432,7 @@ void vider_enchere(Enchere* init) {
 		free_enchere(tmp);
 	}
 	ench = NULL;
+	init = NULL;
 }
 
 /*
@@ -448,23 +445,20 @@ char* grow_char(char* old, char* to_add) {
 }
 
 char* get_bilan(Session* session, int nb_tour) {
-		User *tmp;
-   		char buff[70], *msg;
+	User *tmp;
+   	char buff[70], *msg;
 
     	sprintf(buff, "%d", nb_tour);
     	msg = malloc(sizeof(char)*(strlen(buff)+1));
     	strcpy(msg, buff);
     	memset(buff, 0, 70);
-
     	tmp = session->user;
     	while(tmp != NULL) {
     		sprintf(buff, "(%s,%d)", tmp->username, tmp->score);
         	msg = grow_char(msg, buff);
-			tmp = tmp->next;
-		}
-		fprintf(stderr, ">>>>> Bilan: %s\n", msg);
-
-		return msg;
+		tmp = tmp->next;
+	}
+	return msg;
 }
 
 char* get_enigme() {
@@ -472,104 +466,3 @@ char* get_enigme() {
 	return ENIGME1;
 }
 
-int noRobot(Enigme* e, int x,int y){
-	int present=1;
-	if(e->xr==x && e->yr==y){
-		present=0;
-	}
-	if(e->xj==x && e->yj==y){
-		present=0;
-	}
-	if(e->xv==x && e->yv==y){
-		present=0;
-	}
-	if(e->xb==x && e->yb==y){
-		present=0;
-	}
-	return present;
-}
-
-void move(Plateau* plateau,Enigme* enigme, int *x, int *y, char d) {
-	
-	if(d == 'H') {
-		while(plateau->cases[*x][*y].h != 1 && noRobot(enigme,*x-1,*y)) {
-			*x-=1;
-		}
-	} else if(d == 'B') {
-		while(plateau->cases[*x][*y].b != 1 && noRobot(enigme,*x+1,*y)) {
-			*x+=1;
-		}
-	} else if(d == 'G') {
-		while(plateau->cases[*x][*y].g != 1 && noRobot(enigme,*x,*y-1)) {
-			*y-=1;
-		}
-	} else if(d == 'D') {
-		while(plateau->cases[*x][*y].d != 1 && noRobot(enigme,*x,*y+1)) {
-			*y+=1;
-		}
-	}
-
-}
-
-/* 
- * Verifie si la solution proposee resout l'enigme.
- * return 0 si la solution est bonne -1 sinon
- */ 
-int solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements) {
-	int i = 0;
-	char c, d;
-	
-	while(deplacements[i] != '\0') {
-		c = deplacements[i++];
-		d = deplacements[i];
-		
-		if(c == 'R') {
-			fprintf(stderr,"Position du rouge %d %d \n",enigme->xr,enigme->yr);
-			move(plateau,enigme, &enigme->xr, &enigme->yr, d);
-			fprintf(stderr,"Position du rouge %d %d \n",enigme->xr,enigme->yr);
-		} else if(c == 'B') {
-			move(plateau,enigme, &enigme->xb, &enigme->yb, d);
-		} else if(c == 'J') {
-			move(plateau,enigme, &enigme->xj, &enigme->yj, d);
-		} else if(c == 'V') {
-			move(plateau,enigme, &enigme->xv, &enigme->yv, d);
-		}
-		i++;
-	}
-	
-	if(enigme->c == 'R') {
-		if(enigme->xr == enigme->xc && enigme->yr == enigme->yc)
-			return 1;
-		return 0;
-	} else if(enigme->c == 'B') {
-		if(enigme->xb == enigme->xc && enigme->yb == enigme->yc)
-			return 1;
-		return 0;
-	} else if(enigme->c == 'J') {
-		if(enigme->xj == enigme->xc && enigme->yj == enigme->yc)
-			return 1;
-		return 0;
-	} else if(enigme->c == 'V') {
-		if(enigme->xv == enigme->xc && enigme->yv == enigme->yc)
-			return 1;
-		return 0;
-	} else {
-		fprintf(stderr, "[solution_bonne] What ??? enigme->c: %c\n", enigme->c);
-		return 0;
-	}
-}
-
-Enigme* copy_of_enigme(Enigme *enigme) {
-	Enigme* enig = malloc(sizeof(Enigme));
-	enig->xr = enigme->xr;
-	enig->yr = enigme->yr;
-    	enig->xb = enigme->xb;
-    	enig->yb = enigme->yb;
-    	enig->xj = enigme->xj;
-    	enig->yj = enigme->yj;
-    	enig->xv = enigme->xv;
-    	enig->yv = enigme->yv;
-    	enig->c = enigme->c;
-	
-	return enig;
-}
