@@ -31,6 +31,9 @@ extern int	SESSIONS_CPT;
 extern char*	ENIGME1;
 extern char*	PLATEAU1;
 extern int	R, B, J, V;
+extern pthread_mutex_t mutex_phase;
+extern int 		sock;
+
 
 /* Donnees d'un utilisateur */
 typedef struct _user {
@@ -85,6 +88,8 @@ typedef enum { REFLEXION, ENCHERE, RESOLUTION, UNDEF } PHASE;
 typedef enum { ROUGE, BLEU, JAUNE, VERT } COULEUR;
 typedef enum { HAUT, BAS, GAUCHE, DROITE } COTE;
 
+extern PHASE 	phase;
+
 /* Manipulation des utilisateurs */
 User*		create_user(char *username, int scom);
 int 			add_user(User *user, Session *session);
@@ -120,3 +125,13 @@ char*		get_enigme();
 Enigme*		copy_of_enigme(Enigme *enigme);
 int 			solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements);
 void                 affiche_plateau(Plateau* plateau);
+void*               handle_client(void* arg);
+void*               listen_to_clients(void* arg);
+
+int connexion(int scom, char* buff);
+int deconnexion(int scom, char* buff);
+void client_enchere(int scom, char* buff);
+void client_trouve(int scom, char *buff) ;
+void client_resolution(int scom, char* buff);
+void client_chat(int scom, char* buff);
+void disconnect_if_connected(int scom);
