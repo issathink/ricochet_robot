@@ -363,12 +363,12 @@ int get_username_and_coups(char* buff, char* username, int* coups) {
 	while(buff[i] != '/')
 		tmp[j++] = buff[i++];
 	tmp[j] = '\0';
-	fprintf(stderr, "get_username_and_coups tmp : %s\n", tmp);
+	// fprintf(stderr, "get_username_and_coups tmp : %s\n", tmp);
 
 	if(j < 1 || j > 10) return -1;
 	
 	*coups = strtol(tmp, &endptr, 10);
-	fprintf(stderr, "get_username_and_coups Coups : %d\n", (*coups));
+	// fprintf(stderr, "get_username_and_coups Coups : %d\n", (*coups));
     if (errno == ERANGE || (errno != 0 && *coups == 0))
        	return -1;
 
@@ -409,7 +409,7 @@ void vider_session(Session *joining) {
 	User *tmp;
 
 	if(joining == NULL) {
-	        fprintf(stderr, "Why joining is NULL ???\n");
+	        // fprintf(stderr, "Why joining is NULL ???\n");
 		return;
 	}
 	
