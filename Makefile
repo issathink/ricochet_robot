@@ -20,7 +20,7 @@ O=
 .PHONY: all clean test test-ftp_server test-ftp_client
 all: $(BIN)serveur
 
-test: test-serveur 
+test: $(BIN)serveur
 
 test-serveur: $(BIN)serveur
 	-$$PWD/bin/serveur 2000 &

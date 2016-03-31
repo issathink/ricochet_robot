@@ -324,6 +324,8 @@ void start_session() {
 		// fprintf(stderr, "Le jeu a deja commence pas besoin pas besoin d'envoyer session.\n");
 		return;
 	}
+
+	
 	while(PLATEAU1[i] != '\0') {
 		i++;
 		while(PLATEAU1[i] != ',')
@@ -349,6 +351,7 @@ void start_session() {
 			plateau->cases[atoi(x)][atoi(y)-1].d = 1; // ajout
 		}
 		i++; j = 0;
+		fprintf(stderr, "x: %d, y: %d\n", atoi(x), atoi(y));
 		memset(x, 0, 3);
 		memset(y, 0, 3);
 	}
