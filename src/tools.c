@@ -21,7 +21,7 @@ User *create_user(char *username, int scom) {
 	user->next = NULL;
 	user->id = ++USERS_CPT;
 	user->score = 0;
-	user->coups = -1;
+	user->coups = MAX_INT;
 	user->scom = scom;
 
 	return user;
@@ -42,7 +42,7 @@ int add_user(User *user, Session *session) {
 		tmp = tmp->next;
 	tmp->next = user;
 	session->size++;
-	affiche_session(session);
+	/// affiche_session(session);
 
 	return 0;
 }
@@ -74,7 +74,7 @@ User* delete_user(User *user, Session *session) {
 
 void affiche_user(User *user) {
 	if(user == NULL)
-		printf("/* WARNING afficher_user */ Want to display NULL user.\n");
+		printf("/* WARNING affiche_user */ Want to display NULL user.\n");
 	else
 		printf("  [User] ID: %d, name: %s, score: %d, scom: %d\n", user->id, user->username, user->score, user->scom);
 }
@@ -98,36 +98,37 @@ Enchere* create_enchere(int scom, int mise) {
 	return enchere;
 }
 
-
-Enchere* add_enchere(Enchere *enchere, Enchere *init) {
-	Enchere* tmp = init, *ench;
+int add_enchere(Enchere *enchere, Session *init) {
+	Enchere* tmp, *ench;
 	if(enchere == NULL)
-		return init;
+		return -1;
 		
+	if(init->enchere == NULL) {
+		init->enchere = enchere;
+		return 0;
+	}
+
+
 	ench = cherche_enchere(enchere->scom, init);
 	if(ench != NULL) {
 		ench->mise = enchere->mise;
-		return init;
-	}
-	if(init == NULL) {
-		init = enchere;
-		return init;
+		return 0;
 	}
 
+	tmp = init->enchere;
 	while(tmp->next != NULL)
 		tmp = tmp->next;
-	tmp = enchere;
-	
-	return init;
+	tmp->next = enchere;
+
+	return 0;
 }
 
-Enchere* cherche_enchere(int scom, Enchere* init) {
-	Enchere *tmp;
-	if(init == NULL) {
+Enchere* cherche_enchere(int scom, Session* init) {
+	Enchere *tmp = init->enchere;
+	if(tmp == NULL) {
 		return NULL;
-        }
+    }
 		
-	tmp = init;
 	while(tmp != NULL) {
 		if(tmp->scom == scom)
 			return tmp;
@@ -136,26 +137,26 @@ Enchere* cherche_enchere(int scom, Enchere* init) {
 	return NULL;
 }
 
-Enchere* delete_enchere(Enchere* enchere, Enchere* init) {
-	Enchere* tmp, *_ench;
+Enchere* delete_enchere(Enchere* enchere, Session* init) {
+	Enchere* tmp = init->enchere, *_ench;
 
-	if(init == NULL || enchere == NULL) return NULL; 
+	if(tmp == NULL || enchere == NULL) return NULL; 
 
-	if(init->next == NULL && init->scom == enchere->scom) {
-	        tmp = init;
-	        init = NULL;
+	if(init->enchere->next == NULL && init->enchere->scom == enchere->scom) {
+	    tmp = init->enchere;
+	    init->enchere = NULL;
 		return tmp;
 	}
-	if(init->next == NULL)
+	if(init->enchere->next == NULL)
 		return NULL;
 
-	if(init->scom == enchere->scom) {
-		tmp = init;
-		init = init->next;
+	if(init->enchere->scom == enchere->scom) {
+		tmp = init->enchere;
+		init->enchere = init->enchere->next;
 		return tmp;
 	}
-	tmp = init->next;
-	_ench = init;
+	tmp = init->enchere->next;
+	_ench = init->enchere;
 	while(tmp != NULL) {
 		if(tmp->scom == enchere->scom) {
 			_ench->next = tmp->next;
@@ -167,8 +168,8 @@ Enchere* delete_enchere(Enchere* enchere, Enchere* init) {
 	return NULL;
 }
 
-void afficher_enchere(Enchere* init) {
-        Enchere* tmp = init;
+void affiche_enchere(Session* init) {
+        Enchere* tmp = init->enchere;
         if(init == NULL) {
                 fprintf(stderr, ">>> Pas d'enchere ???\n");
                 return;
@@ -187,9 +188,9 @@ void free_enchere(Enchere* enchere) {
 /*
  * Retourne le moins offrant et le supprime de la liste des encheres.
  */
-Enchere* get_le_moins_offrant(Enchere *init) {
-	Enchere* tmp = init, *ench;
-	if(init == NULL)
+Enchere* get_le_moins_offrant(Session *init) {
+	Enchere* tmp = init->enchere, *ench;
+	if(init->enchere == NULL)
 		return NULL;
 	ench = tmp;
 	while(tmp != NULL) {
@@ -206,6 +207,7 @@ Session* create_session(int countdown) {
 	Session* session = malloc(sizeof(Session));
 	if(session == NULL) return NULL;
 	session->plateau = NULL;
+	session->enchere = NULL;
 	session->next = NULL;
 	session->user = NULL;
 	session->countdown = countdown;
@@ -255,7 +257,7 @@ void affiche_session(Session *session) {
 	User *user = tmp->user; 
 
 	if(session == NULL)
-		printf("/* WARNING afficher_session */ Want to display NULL session.\n");
+		printf("/* WARNING affiche_session */ Want to display NULL session.\n");
 
 	if(tmp->size == 0) {
 		printf("[Session] Session(vide) ID: %d [countdown: %d]\n", tmp->id, tmp->countdown);
@@ -420,8 +422,8 @@ void vider_session(Session *joining) {
 /*
  * Free all bids of previous round.
  */
-void vider_enchere(Enchere* init) {
-	Enchere *ench = init;
+void vider_enchere(Session* init) {
+	Enchere *ench = init->enchere;
 	Enchere *tmp;
 	if(init == NULL)
 		return;
@@ -432,7 +434,7 @@ void vider_enchere(Enchere* init) {
 		free_enchere(tmp);
 	}
 	ench = NULL;
-	init = NULL;
+	init->enchere = NULL;
 }
 
 /*

@@ -10,7 +10,6 @@ pthread_mutex_t mutex_data_ref = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_enc = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_sol = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_cond = 		PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_enchere =	PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_session = 		PTHREAD_COND_INITIALIZER; 
 
 Session 	*init, *joining;
@@ -49,8 +48,8 @@ void handler_reflexion(int sig) {
 		// Desactiver le timer (qui est cense indiquer la fin de la phase).
 		itv.it_value.tv_sec = 0;
 		itv.it_value.tv_usec = 0;
-	    	itv.it_interval.tv_sec = 0;
-	    	itv.it_interval.tv_usec = 0;
+	    itv.it_interval.tv_sec = 0;
+	    itv.it_interval.tv_usec = 0;
 		setitimer(ITIMER_REAL, &itv, (struct itimerval *)0);
 		pthread_mutex_lock(&mutex_is_timeout); 
 		is_timeout_ref = 1;
@@ -76,7 +75,18 @@ void handler_encheres(int sig) {
  */
 void handler_resolution(int sig) {
 	/* Reveil du serveur (fin de la phase de resolution) */
+	struct itimerval itv;
 	sig++;
+
+	pthread_mutex_lock (&mutex_data_sol);
+	if(is_timeout_res == 1) {
+		itv.it_value.tv_sec = 0;
+		itv.it_value.tv_usec = 0;
+	    itv.it_interval.tv_sec = 0;
+	    itv.it_interval.tv_usec = 0;
+		setitimer(ITIMER_REAL, &itv, (struct itimerval *)0);
+	}
+	pthread_mutex_unlock (&mutex_data_sol);
 }
 
 /*
@@ -351,7 +361,7 @@ void start_session() {
 		send(tmp->scom, msg, strlen(msg), 0);
 		tmp = tmp->next;
 	}
-	affiche_session(init);
+	// affiche_session(init);
 	pthread_mutex_unlock(&mutex_init);
 	free(msg);
 	// fprintf(stderr,"[Serveur] End start session function.\n");
@@ -388,16 +398,9 @@ int resolution() {
 	scom = scom_actif;
 	coups = coups_actif;	
 	pthread_mutex_unlock(&mutex_data_sol);
-	
-	fprintf(stderr, "Avant de rentrer dans le while\n");
-	pthread_mutex_lock(&mutex_enchere);
-	afficher_enchere(init_enchere);
-	pthread_mutex_unlock(&mutex_enchere);
-
-	fprintf(stderr, "A l'entree du while\n");        
-	fprintf(stderr, "------------------------\n");
-	afficher_enchere(init_enchere);
-	fprintf(stderr, "----------END----------\n");
+	pthread_mutex_lock(&mutex_init);
+	delete_enchere(create_enchere(scom, coups), init);
+	pthread_mutex_unlock(&mutex_init);
 	
 	while(scom != -1 && coups != -1) {
 		setitimer(ITIMER_REAL, &itv, (struct itimerval *)0);
@@ -413,20 +416,24 @@ int resolution() {
 
 		// Le client n'a pas propose une solution dans le temps imparti
 		if(time_out == 0) {
-			pthread_mutex_lock(&mutex_enchere);
-			enchere = get_le_moins_offrant(init_enchere);
-			pthread_mutex_unlock(&mutex_enchere);
-
 			pthread_mutex_lock(&mutex_init);
-			tmp = cherche_user(init, scom);
-			pthread_mutex_unlock(&mutex_init);
-			message = realloc(message, strlen(tmp->username) + 12);
-			send_message(message);
-			
+			enchere = get_le_moins_offrant(init);
 			if(enchere == NULL) {
-				fprintf(stderr, "Y a plus d'enchere\n");
+				// fprintf(stderr, "Plus d'enchere time_out\n");
+				pthread_mutex_unlock(&mutex_init);
 				break;
 			}
+			tmp = cherche_user(init, enchere->scom);
+			pthread_mutex_unlock(&mutex_init);
+
+			if(tmp == NULL) {
+				// fprintf(stderr, "tmp = NULL et y a plus d'encheres\n");
+				break;
+			}
+			message = realloc(message, strlen(tmp->username) + 12);
+			sprintf(message, "TROPLONG/%s/\n", tmp->username);
+			send_message(message);
+
 			pthread_mutex_lock(&mutex_data_sol);
 			scom = scom_actif = enchere->scom;
 			coups = coups_actif = enchere->mise;
@@ -462,23 +469,33 @@ int resolution() {
 				// MAUVAISE/user/	(S -> C)
 				// Rechercher le prochain utilisateur dans la liste des parieurs
 				// send_mauvaise(username);
-				pthread_mutex_lock(&mutex_enchere);
-				enchere = get_le_moins_offrant(init_enchere);
-				pthread_mutex_unlock(&mutex_enchere);
-								
 				pthread_mutex_lock(&mutex_init);
-				tmp = cherche_user(init, scom);
+				fprintf(stderr, "++++++++++++++++++ Avant get le moins offrant\n");
+				affiche_enchere(init);
+
+				enchere = get_le_moins_offrant(init);
+
+				if(enchere == NULL) {
+					fprintf(stderr, "Plus d'enchere solution mauvaise scom: mise: \n");
+					pthread_mutex_unlock(&mutex_init);
+					break;
+				}
+				fprintf(stderr, "------------------ Apres get le moins offrant\n");
+				affiche_enchere(init);
+
+				tmp = cherche_user(init, enchere->scom);
 				pthread_mutex_unlock(&mutex_init);
+				if(tmp == NULL) {
+					fprintf(stderr, "tmp = NULL et y a plus d'encheres 2\n");
+					break;
+				}
 
 				message = realloc(message, strlen(tmp->username) + 11);
 				sprintf(message, "MAUVAISE/%s/\n", tmp->username);
 				send_message(message);
 				fprintf(stderr, "++++++++++++++++++ MAUVAISE\n");
 
-				if(enchere == NULL) {
-					fprintf(stderr, "Y a plus d'encheres 2\n");
-					break;
-				}
+
 				
 				pthread_mutex_lock(&mutex_data_sol);
 				scom = scom_actif = enchere->scom;
@@ -534,15 +551,11 @@ void go() {
 		// Liberer les donnees de la liste joining.
 		vider_session(joining);
 		pthread_mutex_unlock (&mutex_joining);
-
-		pthread_mutex_lock(&mutex_enchere);
-		vider_enchere(init_enchere);
-		pthread_mutex_unlock(&mutex_enchere);
-
+		vider_enchere(init);
 		user = init->user;
 		// Reinitialiser l'enchere pour le nouveau tour. 
 		while(user != NULL) {
-			user->coups = -1;
+			user->coups = MAX_INT;
 			user = user->next;
 		}
 		pthread_mutex_unlock (&mutex_init);
@@ -825,9 +838,9 @@ int deconnexion(int scom, char* buff) {
 	}
 
 	// Supprimer les encheres du joueur qui vient de se deconnecter.	
-	pthread_mutex_lock (&mutex_enchere);
-	delete_enchere(cherche_enchere(scom, init_enchere), init_enchere);
-	pthread_mutex_unlock (&mutex_enchere);
+	pthread_mutex_lock (&mutex_init);
+	delete_enchere(cherche_enchere(scom, init), init);
+	pthread_mutex_unlock (&mutex_init);
 	fprintf(stderr, "[Serveur] Fin deconnexion.\n");
 	return 0;	
 }
@@ -868,6 +881,7 @@ void client_trouve(int scom, char *buff) {
 	char username[50];
 	int coups;
 	User* user;
+	Enchere* enchere;
 
 	if(get_username_and_coups(buff, username, &coups) == -1) {
 		fprintf(stderr, "[Seveur] Commande client inconnue: %s, count: %d\n", buff, (int)strlen(buff));
@@ -894,6 +908,8 @@ void client_trouve(int scom, char *buff) {
 				scom_actif = scom;
 				strcpy(username_actif, username);
 				pthread_mutex_unlock(&mutex_data_sol);
+				enchere = create_enchere(scom, coups);
+				add_enchere(enchere, init);	
 				// Notifier le thread main de la terminaison 
 				kill(main_pid, SIGINT);
 			} else {
@@ -916,6 +932,8 @@ void client_enchere(int scom, char* buff) {
 	User* user;
 	Enchere* enchere;
 
+	fprintf(stderr, "nnnnnnnnnnnnnnnnnnn Client scom: %d\n", scom);
+
 	pthread_mutex_lock(&mutex_phase);
 	if(phase != ENCHERE) {
 		pthread_mutex_unlock(&mutex_phase);
@@ -937,32 +955,24 @@ void client_enchere(int scom, char* buff) {
 			scom_actif = scom;
 			strcpy(username_actif, username);
 			enchere = create_enchere(scom, coups);
-			if(enchere != NULL) {
-				pthread_mutex_lock(&mutex_enchere);
-				init_enchere = add_enchere(enchere, init_enchere);
-				pthread_mutex_unlock (&mutex_enchere);
-			} else  {
-				pthread_mutex_unlock(&mutex_data_sol);
-				pthread_mutex_unlock(&mutex_init);
-				return;
-			}
+			fprintf(stderr, "-------------ADD scom: %d mise: %d -----------\n", scom, coups);
+			add_enchere(enchere, init);					
+			fprintf(stderr, "------------------------\n");
+
 			// TUENCHERE/	(S -> C)
 			send(scom, "VALIDATION/\n", 12, 0);
 			// ILENCHERE/user/coups/	(S -> C)
 			send_il_enchere(user->username, scom, coups);
 		} else {
-		        if(coups < user->coups) {
+			fprintf(stderr, "Je suis pas l'actif coups: %d user->Coups: %d\n", coups, user->coups);
+		    if(coups < user->coups) {
 				user->coups = coups;
 				enchere = create_enchere(scom, coups);
-				if(enchere != NULL) {
-					pthread_mutex_lock(&mutex_enchere);
-					init_enchere = add_enchere(enchere, init_enchere);
-					pthread_mutex_unlock(&mutex_enchere);
-				} else {
-					pthread_mutex_unlock(&mutex_data_sol);
-					pthread_mutex_unlock(&mutex_init);
-					return;
-				}
+				add_enchere(enchere, init);
+				fprintf(stderr, "-------------ADD scom: %d mise: %d -----------\n", scom, coups);
+				affiche_enchere(init);
+				fprintf(stderr, "------------------------\n");
+				
 				// TUENCHERE/	(S -> C)
 				send(scom, "VALIDATION/\n", 12, 0);
 				// ILENCHERE/user/coups/	(S -> C)
@@ -976,11 +986,9 @@ void client_enchere(int scom, char* buff) {
 		pthread_mutex_unlock(&mutex_data_sol);
 		pthread_mutex_unlock(&mutex_init);
 	}
-	pthread_mutex_lock(&mutex_enchere);
-	fprintf(stderr, "------------------------\n");
-	afficher_enchere(init_enchere);
-	fprintf(stderr, "----------END----------\n");
-	pthread_mutex_unlock(&mutex_enchere);
+	//fprintf(stderr, "-----------FIN-------------\n");
+	//affiche_enchere(init);
+	//fprintf(stderr, "----------END----------\n");
 }
 
 /*

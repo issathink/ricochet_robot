@@ -24,6 +24,7 @@
 #define		SERVER_PORT		2016
 #define		LINE_SIZE			200
 #define		SMS_SIZE			140
+#define		MAX_INT				2147483647
 
 extern int	USERS_CPT;
 extern int	SESSIONS_CPT;
@@ -71,10 +72,11 @@ typedef struct _enigme {
 
 /* Donnees d'une session */
 typedef struct _session {
-	int 				id;
+	int 			id;
 	int				size;
 	int				countdown;
 	Plateau			*plateau;
+	Enchere 		*enchere;
 	User			*user;
 	struct _session	*next;
 } Session;
@@ -91,13 +93,13 @@ void 		affiche_user(User *user);
 void			free_user(User* user);
 
 Enchere* 	create_enchere(int scom, int mise);
-Enchere*	add_enchere(Enchere *enchere, Enchere *init);
-Enchere*	cherche_enchere(int scom, Enchere* init);
-Enchere*	delete_enchere(Enchere* enchere, Enchere* init);
+int			add_enchere(Enchere *enchere, Session *init);
+Enchere*	cherche_enchere(int scom, Session* init);
+Enchere*	delete_enchere(Enchere* enchere, Session* init);
 void			free_enchere(Enchere* enchere);
-void			vider_enchere(Enchere* init);
-Enchere* 	get_le_moins_offrant(Enchere *init);
-void                 afficher_enchere(Enchere* init);
+void			vider_enchere(Session* init);
+Enchere* 	get_le_moins_offrant(Session *init);
+void                 affiche_enchere(Session* init);
 
 /* Manipulation des sessions */
 Session*		create_session();
@@ -117,4 +119,4 @@ char* 		get_bilan(Session* session, int nb_tour);
 char*		get_enigme();
 Enigme*		copy_of_enigme(Enigme *enigme);
 int 			solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements);
-void                 afficher_plateau(Plateau* plateau);
+void                 affiche_plateau(Plateau* plateau);
