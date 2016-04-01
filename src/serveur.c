@@ -380,7 +380,15 @@ void go() {
 		pthread_mutex_unlock(&mutex_data_ref);
 
 		pthread_mutex_lock (&mutex_init);
-		pthread_mutex_lock (&mutex_joining);		
+		pthread_mutex_lock (&mutex_joining);
+		if(size < 2 && is_playing == 1) {
+		        user = init->user;
+		        while(user != NULL) {
+		                user->score = 0;
+			        user = user->next;
+		        }
+		}
+			
 		user = joining->user;
 		while(user != NULL) {
 		        tmp = create_user(user->username, user->scom);
@@ -405,7 +413,7 @@ void go() {
                         pthread_mutex_unlock(&mutex_is_playing);
 			pthread_mutex_lock (&mutex_cond);
 			// reset score
-			fprintf(stderr, "Je vais reste le score.\n");
+			fprintf(stderr, "Je vais reset le score.\n");
 			user = init->user;
 		        while(user != NULL) {
 		                user->score = 0;
