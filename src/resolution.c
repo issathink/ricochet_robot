@@ -1,5 +1,12 @@
 #include "tools.h"
 
+/* Retourne une enigme tiree aleatoirement dans la liste des enigmes predefinis. */
+char* get_enigme() {
+	// Nah we are returning this for the moment
+	return ENIGME1;
+}
+
+/* Retourne une copie de l'enigme. */
 Enigme* copy_of_enigme(Enigme *enigme) {
 	Enigme* enig = malloc(sizeof(Enigme));
 	enig->xr = enigme->xr;
@@ -17,7 +24,8 @@ Enigme* copy_of_enigme(Enigme *enigme) {
 	return enig;
 }
 
-int noRobot(Enigme* e, int x,int y){
+/* Verifie s'il n'y a pas de robots dans la case (x,y) */
+int no_robot(Enigme* e, int x,int y){
 	int present = 1;
 	if(e->xr == x && e->yr == y)
 		present = 0;
@@ -30,18 +38,19 @@ int noRobot(Enigme* e, int x,int y){
 	return present;
 }
 
+/* Bouge le client dans la case (x,y) vers la direction d. */
 void move(Plateau* plateau,Enigme* enigme, int *x, int *y, char d) {
 	if(d == 'H') 
-		while(plateau->cases[*x][*y].h != 1 && noRobot(enigme,*x-1,*y)) 
+		while(plateau->cases[*x][*y].h != 1 && no_robot(enigme,*x-1,*y)) 
 			 *x-=1;
 	else if(d == 'B') 
-		while(plateau->cases[*x][*y].b != 1 && noRobot(enigme,*x+1,*y)) 
+		while(plateau->cases[*x][*y].b != 1 && no_robot(enigme,*x+1,*y)) 
 			*x+=1;
 	else if(d == 'G')
-		while(plateau->cases[*x][*y].g != 1 && noRobot(enigme,*x,*y-1))
+		while(plateau->cases[*x][*y].g != 1 && no_robot(enigme,*x,*y-1))
 			*y-=1;
 	else if(d == 'D')
-		while(plateau->cases[*x][*y].d != 1 && noRobot(enigme,*x,*y+1))
+		while(plateau->cases[*x][*y].d != 1 && no_robot(enigme,*x,*y+1))
 			*y+=1;
 }
 

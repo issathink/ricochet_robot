@@ -28,11 +28,9 @@ User *create_user(char *username, int scom) {
 }
 
 int add_user(User *user, Session *session) {
-        
 	User *tmp = session->user;
 	if(user == NULL || session == NULL)
 		return -1;
-
 	if(session->size == 0) {
 		session->user = user;
 		session->size++;
@@ -42,8 +40,6 @@ int add_user(User *user, Session *session) {
 		tmp = tmp->next;
 	tmp->next = user;
 	session->size++;
-	/// affiche_session(session);
-
 	return 0;
 }
 
@@ -68,7 +64,6 @@ User* delete_user(User *user, Session *session) {
 		_user = _user->next;
 		tmp->user = tmp->user->next;
 	}
-
 	return NULL;
 }
 
@@ -82,7 +77,6 @@ void affiche_user(User *user) {
 void free_user(User* user) {
 	if(user == NULL)
 		return;
-
 	free(user->username);
 	free(user);
 	user = NULL;
@@ -102,24 +96,19 @@ int add_enchere(Enchere *enchere, Session *init) {
 	Enchere* tmp, *ench;
 	if(enchere == NULL)
 		return -1;
-		
 	if(init->enchere == NULL) {
 		init->enchere = enchere;
 		return 0;
 	}
-
-
 	ench = cherche_enchere(enchere->scom, init);
 	if(ench != NULL) {
 		ench->mise = enchere->mise;
 		return 0;
 	}
-
 	tmp = init->enchere;
 	while(tmp->next != NULL)
 		tmp = tmp->next;
 	tmp->next = enchere;
-
 	return 0;
 }
 
@@ -127,10 +116,22 @@ Enchere* cherche_enchere(int scom, Session* init) {
 	Enchere *tmp = init->enchere;
 	if(tmp == NULL) {
 		return NULL;
-    }
-		
+        }
 	while(tmp != NULL) {
 		if(tmp->scom == scom)
+			return tmp;
+		tmp = tmp->next;
+	}
+	return NULL;
+}
+
+Enchere* cherche_enchere_valeur(int val, Session* init) {
+	Enchere *tmp = init->enchere;
+	if(tmp == NULL) {
+		return NULL;
+        }
+	while(tmp != NULL) {
+		if(tmp->mise == val)
 			return tmp;
 		tmp = tmp->next;
 	}
@@ -141,7 +142,6 @@ Enchere* delete_enchere(Enchere* enchere, Session* init) {
 	Enchere* tmp = init->enchere, *_ench;
 
 	if(tmp == NULL || enchere == NULL) return NULL; 
-
 	if(init->enchere->next == NULL && init->enchere->scom == enchere->scom) {
 	    tmp = init->enchere;
 	    init->enchere = NULL;
@@ -149,7 +149,6 @@ Enchere* delete_enchere(Enchere* enchere, Session* init) {
 	}
 	if(init->enchere->next == NULL)
 		return NULL;
-
 	if(init->enchere->scom == enchere->scom) {
 		tmp = init->enchere;
 		init->enchere = init->enchere->next;
@@ -237,7 +236,6 @@ Session* delete_session(Session *del, Session *list) {
 		list = list->next;
 		return del;
 	}
-	
 	session = tmp->next;
 	while(session != NULL) {
 		if(del->id == session->id) {
@@ -248,7 +246,6 @@ Session* delete_session(Session *del, Session *list) {
 		session = session->next;
 		tmp = tmp->next;
 	}
-
 	return NULL;
 }
 
@@ -258,7 +255,6 @@ void affiche_session(Session *session) {
 
 	if(session == NULL)
 		printf("/* WARNING affiche_session */ Want to display NULL session.\n");
-
 	if(tmp->size == 0) {
 		printf("[Session] Session(vide) ID: %d [countdown: %d]\n", tmp->id, tmp->countdown);
 	} else {
@@ -281,27 +277,7 @@ void affiche_sessions(Session *head) {
 	fprintf(stderr, "/********************************************************/\n");
 }
 
-
 /*********************** Code de la partie serveur ***************************/
-/*
- * Self explanatory function.
- */
-int decode_header(char *str) {
-	if(strncmp("CONNEXION/", str, strlen("CONNEXION/")) == 0)
-		return 1;
-	else if(strncmp("SORT/", str, strlen("SORT/")) == 0)
-		return 2;
-	else if(strncmp("TROUVE/", str, strlen("TROUVE/")) == 0)
-		return 4;
-	else if(strncmp("ENCHERE/", str, strlen("ENCHERE/")) == 0)
-		return 5;
-	else if(strncmp("SOLUTION/", str, strlen("SOLUTION/")) == 0)
-		return 6;
-	else if(strncmp("SEND/", str, strlen("SEND/")) == 0)
-		return 7;
-	return 0;
-}
-
 /*
  * Look for a user with a socket of communication equals scom inside session.
  * return user if there is one, NULL otherwise.
@@ -311,13 +287,10 @@ User* cherche_user(Session* session, int scom) {
 	if(session->size <= 0 || tmp == NULL)
 		return NULL; 
 	while(tmp != NULL) {
-		if(tmp->scom == scom) {
-			// fprintf(stderr, "Jai trouve scom: %d, username: %s\n", tmp->scom, tmp->username);		
+		if(tmp->scom == scom)
 			return tmp;
-		}
 		tmp = tmp->next;
 	}
-
 	return NULL;
 }
 
@@ -340,7 +313,6 @@ int get_username(char* buff, char* username) {
 	if(j < 1)
 		return -1;
 	strcpy(username, name);
-
 	return 0;
 }
 
@@ -364,14 +336,10 @@ int get_username_and_coups(char* buff, char* username, int* coups) {
 		tmp[j++] = buff[i++];
 	tmp[j] = '\0';
 	// fprintf(stderr, "get_username_and_coups tmp : %s\n", tmp);
-
 	if(j < 1 || j > 10) return -1;
-	
 	*coups = strtol(tmp, &endptr, 10);
 	// fprintf(stderr, "get_username_and_coups Coups : %d\n", (*coups));
-    if (errno == ERANGE || (errno != 0 && *coups == 0))
-       	return -1;
-
+        if (errno == ERANGE || (errno != 0 && *coups == 0)) return -1;
 	return 0;
 }
 
@@ -393,11 +361,8 @@ int get_username_and_deplacements(char* buff, char* username, char* deplacements
 	while(buff[i] != '/')
 		deplacements[j++] = buff[i++];
 	deplacements[j] = '\0';
-	
-	// fprintf(stderr, "Cest avant deplacements qui ne crash pas j: %d.\n", j);
 	if(j < 1) return -1;
 	else if(j > (coups*2+1)) return -2;
-
 	return 0;
 }
 
@@ -407,12 +372,8 @@ int get_username_and_deplacements(char* buff, char* username, char* deplacements
 void vider_session(Session *joining) {
 	User *user = joining->user;
 	User *tmp;
-
-	if(joining == NULL) {
-	        // fprintf(stderr, "Why joining is NULL ???\n");
+	if(joining == NULL)
 		return;
-	}
-	
 	while(user != NULL) {
 		tmp = delete_user(user, joining);
 		user = user->next;
@@ -430,7 +391,6 @@ void vider_enchere(Session* init) {
 	Enchere *tmp;
 	if(init == NULL)
 		return;
-
 	while(ench != NULL) {
 		tmp = ench;
 		ench = ench->next;
@@ -464,10 +424,5 @@ char* get_bilan(Session* session, int nb_tour) {
 		tmp = tmp->next;
 	}
 	return msg;
-}
-
-char* get_enigme() {
-	// Nah we are returning this for the moment
-	return ENIGME1;
 }
 
