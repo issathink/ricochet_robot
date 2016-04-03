@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <unistd.h> 
 #include <errno.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -25,6 +26,7 @@
 #define		LINE_SIZE			200
 #define		SMS_SIZE			140
 #define		MAX_INT			2147483647
+#define 	NB_ENIGMES		4
 
 extern pthread_mutex_t mutex_init;
 extern pthread_mutex_t mutex_joining;
@@ -40,7 +42,7 @@ extern pthread_cond_t cond_session;
 
 extern int	USERS_CPT;
 extern int	SESSIONS_CPT;
-extern char*	ENIGME1;
+extern char*	ENIGME1, *ENIGME2, *ENIGME3, *ENIGME4;
 extern char*	PLATEAU1;
 extern int	R, B, J, V;
 

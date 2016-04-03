@@ -2,7 +2,20 @@
 
 /* Retourne une enigme tiree aleatoirement dans la liste des enigmes predefinis. */
 char* get_enigme() {
-	// Nah we are returning this for the moment
+	int r;
+	srand(time(NULL));
+	r = rand() % NB_ENIGMES;
+
+	switch(r) {
+		case 0:
+			return ENIGME1;
+		case 1:
+			return ENIGME2;
+		case 2:
+			return ENIGME3;
+		case 3:
+			return ENIGME4;
+	}
 	return ENIGME1;
 }
 
