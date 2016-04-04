@@ -171,7 +171,6 @@ void end_session() {
     	User *tmp;
     	char *msg, *bilan;
 
-    	pthread_mutex_lock (&mutex_init);
 	bilan = get_bilan(init, nb_tour);
     	msg = malloc(sizeof(char)*strlen(bilan) + 13);    
     	sprintf(msg, "VAINQUEUR/%s/\n", bilan);
@@ -181,7 +180,6 @@ void end_session() {
 		tmp = tmp->next;
 	}
 	vider_session(init);
-	pthread_mutex_unlock (&mutex_init);
 	pthread_mutex_lock (&mutex_joining);
 	vider_session(joining);
 	pthread_mutex_unlock (&mutex_joining);
