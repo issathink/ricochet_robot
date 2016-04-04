@@ -1,13 +1,13 @@
 #include "tools.h"
 
-int	USERS_CPT 		= 0;
+int	USERS_CPT	= 0;
 int	SESSIONS_CPT 	= 0;
-char*PLATEAU1		= "(0,3,D)(0,11,D)(0,13,B)(1,12,D)(2,5,D)(2,5,B)(2,9,D)(2,9,B)(4,0,B)(4,2,D)(4,2,H)(4,15,H)(5,7,G)(5,7,B)(5,14,G)(5,14,B)(6,1,G)(6,1,H)(6,11,H)(6,11,D)(7,7,G)(7,7,H)(7,8,H)(7,8,D)(8,7,G)(8,7,B)(8,8,B)(8,8,D)(8,5,H)(8,5,D)(9,1,D)(9,1,B)(9,12,D)(9,15,B)(10,4,G)(10,4,B)(11,0,B)(12,9,H)(12,9,G)(13,5,D)(13,5,H)(13,14,G)(13,14,B)(14,3,G)(14,3,H)(14,11,D)(14,11,B)(15,14,G)(15,6,D)";
+char*	PLATEAU1	= "(0,3,D)(0,11,D)(0,13,B)(1,12,D)(2,5,D)(2,5,B)(2,9,D)(2,9,B)(4,0,B)(4,2,D)(4,2,H)(4,15,H)(5,7,G)(5,7,B)(5,14,G)(5,14,B)(6,1,G)(6,1,H)(6,11,H)(6,11,D)(7,7,G)(7,7,H)(7,8,H)(7,8,D)(8,7,G)(8,7,B)(8,8,B)(8,8,D)(8,5,H)(8,5,D)(9,1,D)(9,1,B)(9,12,D)(9,15,B)(10,4,G)(10,4,B)(11,0,B)(12,9,H)(12,9,G)(13,5,D)(13,5,H)(13,14,G)(13,14,B)(14,3,G)(14,3,H)(14,11,D)(14,11,B)(15,14,G)(15,6,D)";
 // 13,5,D
-char* ENIGME1 		= "(13,5,9,12,6,1,5,14,14,11,R)";
-char* ENIGME2 		= "(13,5,9,12,6,1,5,14,4,2,V)";
-char* ENIGME3 		= "(13,5,9,12,6,1,5,14,6,11,J)";
-char* ENIGME4 		= "(13,5,9,12,6,1,5,14,9,1,B)";
+char* 	ENIGME1 	= "(13,5,9,12,6,1,5,14,14,11,R)";
+char* 	ENIGME2		= "(13,5,9,12,6,1,5,14,4,2,V)";
+char* 	ENIGME3		= "(13,5,9,12,6,1,5,14,6,11,J)";
+char* 	ENIGME4		= "(13,5,9,12,6,1,5,14,9,1,B)";
 int 	R, B, J, V;
 
 /*
@@ -369,9 +369,7 @@ int get_username_and_deplacements(char* buff, char* username, char* deplacements
 	return 0;
 }
 
-/*
- * Free a session content.
- */
+/*** Free a session content. ***/
 void vider_session(Session *joining) {
 	User *user = joining->user;
 	User *tmp;
@@ -386,9 +384,7 @@ void vider_session(Session *joining) {
 	joining->user = NULL;
 }
 
-/*
- * Free all bids of previous round.
- */
+/*** Free all bids of previous round. ***/
 void vider_enchere(Session* init) {
 	Enchere *ench = init->enchere;
 	Enchere *tmp;
@@ -403,15 +399,14 @@ void vider_enchere(Session* init) {
 	init->enchere = NULL;
 }
 
-/*
- * Try to grow the size of old and concatenate it with to_add.
- */
+/*** Try to grow the size of old and concatenate it with to_add. ***/
 char* grow_char(char* old, char* to_add) {
 	old = realloc(old, strlen(old) + strlen(to_add) + 1);
 	strcat(old, to_add);
 	return old;
 }
 
+/*** Retourne le bilan du tour courant ***/
 char* get_bilan(Session* session, int nb_tour) {
 	User *tmp;
    	char buff[70], *msg;
