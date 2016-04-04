@@ -3,9 +3,9 @@
 /* Variable pour stocker toutes les sessions en cours */
 pthread_mutex_t mutex_init = 		PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_joining = 	PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_phase = 	PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_phase = 		PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_nb_tour = 	PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_is_timeout = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_is_timeout = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_ref = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_enc = 	PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_data_sol = 	PTHREAD_MUTEX_INITIALIZER;
@@ -18,8 +18,8 @@ int 		session_started;
 int		is_playing;
 int 		sock;
 int 		nb_tour = 1;
-PHASE 	phase;
-pid_t 	main_pid;
+PHASE 		phase;
+pid_t 		main_pid;
 int 		is_timeout_ref;
 int 		is_timeout_enc;
 int 		is_timeout_res;
@@ -28,13 +28,13 @@ int 		coups_ref;
 char		username_ref[50];
 int 		scom_actif;
 int 		coups_actif;
-char*	depla_actif;
-Enchere* init_enchere;
+char*		depla_actif;
+Enchere* 	init_enchere;
 char		username_actif[50];
 int 		game_over;
 
 Plateau*	plateau;
-Enigme*	enigme;
+Enigme*		enigme;
 
 /*** Envoie le message msg a tous les joueurs. ***/
 void send_message(char *msg) {
