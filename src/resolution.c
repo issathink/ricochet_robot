@@ -71,9 +71,14 @@ void move(Plateau* plateau,Enigme* enigme, int *x, int *y, char d) {
  * Verifie si la solution proposee resout l'enigme.
  * return 0 si la solution est bonne -1 sinon
  */ 
-int solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements) {
+int solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements, int coups) {
 	int i = 0;
 	char c, d;
+	
+	if((int)strlen(deplacements) > 2*coups) {
+	        fprintf(stderr, "Arrete de me troller merci coups %d deplacements %d\n", coups, strlen(deplacements));
+	        return 0;
+	}
 	
 	while(deplacements[i] != '\0') {
 		c = deplacements[i++];

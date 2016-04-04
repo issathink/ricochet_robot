@@ -189,4 +189,4 @@ void*           handle_client(void* arg);
 /* Fonctions implementees dans le fichier resolution.c */
 char*		get_enigme();
 Enigme*		copy_of_enigme(Enigme *enigme);
-int 		solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements);
+int 		solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements, int coups);

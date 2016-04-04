@@ -317,7 +317,8 @@ int resolution() {
 			is_timeout_res = 0;
 			pthread_mutex_unlock(&mutex_data_sol);
 			Enigme* enig = copy_of_enigme(enigme);
-			if(solution_bonne(plateau, enig, dep)) {
+			fprintf(stderr, "Solution avec %d coups.\n", coups);
+			if(solution_bonne(plateau, enig, dep, coups)) {
 				// BONNE/	(S -> C)
 				pthread_mutex_lock(&mutex_init);
 				tmp = cherche_user(init, scom);
