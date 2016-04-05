@@ -95,6 +95,7 @@ int reflexion() {
 	action.sa_flags = 0; 
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
 	sigaction(SIGINT, &action, (struct sigaction *) 0);
+	sigaction(SIGUSR2, &action, (struct sigaction *) 0);
 	itv.it_interval.tv_usec = 0;
 	itv.it_interval.tv_sec = 0;
 	itv.it_value.tv_sec = TEMPS_REFLEXION;
@@ -109,6 +110,7 @@ int reflexion() {
 	sigfillset(&set);
 	sigdelset(&set, SIGINT);
 	sigdelset(&set, SIGALRM);
+	sigdelset(&set, SIGUSR2);
 	sigsuspend(&set);	
 	pthread_mutex_lock(&mutex_is_timeout);
 	over = is_timeout_ref;
@@ -144,6 +146,7 @@ int enchere() {
 	sigemptyset(&action.sa_mask); 
 	action.sa_flags = 0; 
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
+	sigaction(SIGUSR2, &action, (struct sigaction *) 0);
 	itv.it_interval.tv_usec = 0;
 	itv.it_interval.tv_sec = 0;
 	itv.it_value.tv_sec = TEMPS_ENCHERE;
@@ -154,7 +157,9 @@ int enchere() {
 	sigfillset(&set);
 	sigdelset(&set, SIGINT);
 	sigdelset(&set, SIGALRM);
+	sigdelset(&set, SIGUSR2);
 	sigsuspend(&set);
+
 	pthread_mutex_lock(&mutex_phase); 
 	phase = RESOLUTION;
 	pthread_mutex_unlock(&mutex_phase);	
@@ -171,20 +176,26 @@ void end_session() {
     	User *tmp;
     	char *msg, *bilan;
 
+    	pthread_mutex_lock (&mutex_init);
 	bilan = get_bilan(init, nb_tour);
     	msg = malloc(sizeof(char)*strlen(bilan) + 13);    
     	sprintf(msg, "VAINQUEUR/%s/\n", bilan);
 	tmp = init->user;
 	while(tmp != NULL) {
 		send(tmp->scom, msg, strlen(msg), 0);
+		tmp->score = 0;
+		tmp->coups = -1;
 		tmp = tmp->next;
 	}
-	vider_session(init);
-	pthread_mutex_lock (&mutex_joining);
-	vider_session(joining);
-	pthread_mutex_unlock (&mutex_joining);
+	// vider_session(init);
+	pthread_mutex_unlock (&mutex_init);
+	// pthread_mutex_lock (&mutex_joining);
+	// vider_session(joining);
+	// pthread_mutex_unlock (&mutex_joining);
+	pthread_mutex_lock(&mutex_nb_tour);
+	nb_tour = 0;
+	pthread_mutex_unlock(&mutex_nb_tour);
 	free(msg);
-	exit(0);
 }
 
 /*** Initilalise le plateau ***/
@@ -259,6 +270,7 @@ int resolution() {
 	action.sa_flags = 0; 
 	sigaction(SIGALRM, &action, (struct sigaction *) 0);
 	sigaction(SIGUSR1, &action, (struct sigaction *) 0);
+	sigaction(SIGUSR2, &action, (struct sigaction *) 0);
 	itv.it_interval.tv_usec = 0;
 	itv.it_interval.tv_sec = 0;
 	itv.it_value.tv_sec = TEMPS_RESOLUTION;
@@ -280,6 +292,7 @@ int resolution() {
 		sigfillset(&set);
 		sigdelset(&set, SIGINT);
 		sigdelset(&set, SIGUSR1);
+		sigdelset(&set, SIGUSR2);
 		sigdelset(&set, SIGALRM);
 		sigsuspend(&set);		
 		pthread_mutex_lock(&mutex_data_sol);
@@ -315,21 +328,22 @@ int resolution() {
 			is_timeout_res = 0;
 			pthread_mutex_unlock(&mutex_data_sol);
 			Enigme* enig = copy_of_enigme(enigme);
-			fprintf(stderr, "Solution avec %d coups.\n", coups);
 			if(solution_bonne(plateau, enig, dep, coups)) {
 				// BONNE/	(S -> C)
 				pthread_mutex_lock(&mutex_init);
 				tmp = cherche_user(init, scom);
 				tmp->score++;
-				if(tmp->score >= SCORE_OBJ) {
-					end_session();
-					game_over = 1;
-				}
+
 				pthread_mutex_unlock(&mutex_init);
 				message = realloc(message, strlen(tmp->username) + 9);
 				sprintf(message, "BONNE/%s/\n", tmp->username);
 				send_message(message);
 				free(enig);
+				
+				if(tmp->score >= SCORE_OBJ) {
+					end_session();
+					game_over = 1;
+				}
 				return 0;
 			} else {
 				pthread_mutex_lock(&mutex_init);
@@ -380,6 +394,7 @@ void go() {
 
 		pthread_mutex_lock (&mutex_init);
 		pthread_mutex_lock (&mutex_joining);
+		size = init->size;
 		if(size < 2 && is_playing == 1) {
 		        user = init->user;
 		        while(user != NULL) {
@@ -387,7 +402,7 @@ void go() {
 			        user = user->next;
 		        }
 		}
-			
+		
 		user = joining->user;
 		while(user != NULL) {
 		        tmp = create_user(user->username, user->scom);
@@ -399,6 +414,7 @@ void go() {
 		vider_session(joining);
 		pthread_mutex_unlock (&mutex_joining);
 		vider_enchere(init);
+	        
 		user = init->user;
 		// Reinitialiser l'enchere pour le nouveau tour. 
 		while(user != NULL) {
@@ -406,6 +422,7 @@ void go() {
 			user = user->next;
 		}
 		pthread_mutex_unlock (&mutex_init);
+	        
                 pthread_mutex_lock(&mutex_is_playing);
 		if(size < 2 && is_playing == 1) {
 			is_playing = 0;
@@ -420,18 +437,16 @@ void go() {
 		        }
 			pthread_cond_wait(&cond_session, &mutex_cond);
 			pthread_mutex_unlock (&mutex_cond);
-			// end_session();
 		        continue;
 		} else if(size < 2) {
 	                pthread_mutex_unlock(&mutex_is_playing);
 			pthread_mutex_lock (&mutex_cond);			
-			// fprintf(stderr, "Je vais etre bloque\n");
 			pthread_cond_wait(&cond_session, &mutex_cond);
 			pthread_mutex_unlock (&mutex_cond);
 			continue;
 		} else {
                         pthread_mutex_unlock(&mutex_is_playing);
-			// fprintf(stderr, "Bah on peut commence a jouer\n");
+			fprintf(stderr, "Bah on peut commence a jouer\n");
 		}
                 pthread_mutex_lock(&mutex_is_playing);
 		if(is_playing == 0) {
@@ -562,9 +577,6 @@ int connexion(int scom, char* buff) {
 		send(scom, "Cannot create user.\n", 21, 0);
 		return -1;
 	}
-	pthread_mutex_lock (&mutex_cond); 
-	pthread_cond_signal (&cond_session); 
-	pthread_mutex_unlock (&mutex_cond); 
 	pthread_mutex_lock (&mutex_joining);
 	add_user(user, joining);
 	pthread_mutex_unlock (&mutex_joining);		
@@ -572,6 +584,9 @@ int connexion(int scom, char* buff) {
 	sprintf(msg, "BIENVENUE/%s/\n", name);
 	send(scom, msg, strlen(msg), 0);
 	send_to_all(scom, name);
+	pthread_mutex_lock (&mutex_cond); 
+	pthread_cond_signal (&cond_session); 
+	pthread_mutex_unlock (&mutex_cond);
 	fprintf(stderr, "Successfully connected user: %s\n", name);
 	free(name);
 	return 0;
@@ -582,6 +597,7 @@ int deconnexion(int scom, char* buff) {
 	char username[50];
 	char tmp[65];
 	User *user, *tmpU;
+        int size;
 
 	if(get_username(buff, username) == -1) {
 		fprintf(stderr, "[Serveur] Erreur lors de deconnexion. Command: %s\n", buff);
@@ -617,8 +633,15 @@ int deconnexion(int scom, char* buff) {
 	// Supprimer les encheres du joueur qui vient de se deconnecter.	
 	pthread_mutex_lock (&mutex_init);
 	delete_enchere(cherche_enchere(scom, init), init);
+        fprintf(stderr, "[Serveur] Apres deconnecte: %d\n", init->size);
+	size = init->size;
 	pthread_mutex_unlock (&mutex_init);
 	fprintf(stderr, "[Serveur] Fin deconnexion.\n");
+	
+	if(size == 0) {
+	        // end_session();
+		kill(main_pid, SIGUSR2);
+	}
 	return 0;	
 }
 

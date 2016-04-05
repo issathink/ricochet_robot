@@ -418,9 +418,12 @@ char* get_bilan(Session* session, int nb_tour) {
     	tmp = session->user;
     	while(tmp != NULL) {
     		sprintf(buff, "(%s,%d)", tmp->username, tmp->score);
+    		fprintf(stderr, " ------------------ score: %d\n", tmp->score);
         	msg = grow_char(msg, buff);
 		tmp = tmp->next;
 	}
+	
+	fprintf(stderr, "BIlan du tour: %s\n", msg);
 	return msg;
 }
 

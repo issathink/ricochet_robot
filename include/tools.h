@@ -26,7 +26,7 @@
 #define		LINE_SIZE		200
 #define		SMS_SIZE		140
 #define		MAX_INT			2147483647
-#define 	NB_ENIGMES		4
+#define 	NB_ENIGMES		1
 
 extern pthread_mutex_t 	mutex_init;
 extern pthread_mutex_t 	mutex_joining;
@@ -38,6 +38,7 @@ extern pthread_mutex_t 	mutex_data_enc;
 extern pthread_mutex_t 	mutex_data_sol;
 extern pthread_mutex_t 	mutex_is_playing;
 extern pthread_mutex_t 	mutex_cond;
+extern pthread_mutex_t       mutex_restarting;
 extern pthread_cond_t 	cond_session; 
 
 extern int	USERS_CPT;
@@ -48,6 +49,7 @@ extern int	R, B, J, V;
 
 extern int 		session_started;
 extern int		is_playing;
+extern int               restart;
 
 extern int 		sock;
 extern int 		nb_tour;

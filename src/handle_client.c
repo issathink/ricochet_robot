@@ -184,6 +184,11 @@ void client_chat(int scom, char* buff) {
  */
 void handler_reflexion(int sig) {
 	struct itimerval itv; 
+	
+	if(sig == SIGUSR2) {
+	        // faire un exec
+	        execl("/bin/serveur", "0", NULL);
+	}
 	if(sig == SIGINT) {
 		// Desactiver le timer (qui est cense indiquer la fin de la phase).
 		itv.it_value.tv_sec = 0;
@@ -207,7 +212,10 @@ void handler_reflexion(int sig) {
  */
 void handler_encheres(int sig) {
 	/* Reveil de serveur (fin de la phase des encheres) */
-	sig++;
+	if(sig == SIGUSR2) {
+	      	// faire un exec
+	        execl("/bin/serveur", "0", NULL);
+	}
 }
 
 /*
@@ -216,7 +224,10 @@ void handler_encheres(int sig) {
 void handler_resolution(int sig) {
 	/* Reveil du serveur (fin de la phase de resolution) */
 	struct itimerval itv;
-	sig++;
+	if(sig == SIGUSR2) {
+	        // faire un exec
+	        execl("/bin/serveur", "0", NULL);
+	}
 
 	pthread_mutex_lock (&mutex_data_sol);
 	if(is_timeout_res == 1) {
