@@ -76,7 +76,7 @@ int solution_bonne(Plateau* plateau, Enigme* enigme, char* deplacements, int cou
 	char c, d;
 	
 	if((int)strlen(deplacements) > 2*coups) {
-	        fprintf(stderr, "Arrete de me troller merci coups %d deplacements %d\n", coups, (int)strlen(deplacements));
+	        fprintf(stderr, "Nombre de coups %d > nombre de deplacements %d\n", coups, (int)strlen(deplacements));
 	        return 0;
 	}
 	

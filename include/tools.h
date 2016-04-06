@@ -16,17 +16,17 @@
 #include <pthread.h>
 
 #define		NB_CASES		16
-#define		SCORE_OBJ		10
+#define		SCORE_OBJ		1
 
 #define		TEMPS_REFLEXION		300		/* secondes */
-#define		TEMPS_ENCHERE		30		/* secondes */
+#define		TEMPS_ENCHERE		2		/* secondes */
 #define		TEMPS_RESOLUTION	60		/* secondes */
 
 #define		SERVER_PORT		2016
 #define		LINE_SIZE		200
 #define		SMS_SIZE		140
 #define		MAX_INT			2147483647
-#define 	NB_ENIGMES		1
+#define 	NB_ENIGMES		4
 
 extern pthread_mutex_t 	mutex_init;
 extern pthread_mutex_t 	mutex_joining;
@@ -182,6 +182,7 @@ void            client_enchere(int scom, char* buff);
 void            client_trouve(int scom, char *buff) ;
 void            client_resolution(int scom, char* buff);
 void            client_chat(int scom, char* buff);
+void            log_session(Session* session);
 void*           listen_to_clients(void* arg);
 void            handler_reflexion(int sig);
 void            handler_encheres(int sig);

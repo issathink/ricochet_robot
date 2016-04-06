@@ -179,6 +179,36 @@ void client_chat(int scom, char* buff) {
 	free(name);
 }
 
+/*** Log les donnees de la session qui vient juste de se terminer ***/
+void log_session(Session* session) {
+        User*tmp = session->user;
+        FILE* file = fopen("./src/log.ini", "a");
+        
+        if(file == NULL) {
+                pthread_mutex_lock(&mutex_init);
+                fprintf(stderr, "Cannot create file log.ini\n");
+                while(tmp != NULL) {
+                        tmp->score = 0;
+	                tmp->coups = -1;
+                        tmp = tmp->next;
+                }
+                pthread_mutex_unlock(&mutex_init);
+                return;
+        }
+        
+        pthread_mutex_lock(&mutex_init);
+        while(tmp != NULL) {
+                fprintf(file, "%s %d\n", tmp->username, tmp->score);
+                fflush(file);
+                tmp->score = 0;
+	        tmp->coups = -1;
+                tmp = tmp->next;
+        }
+        pthread_mutex_unlock(&mutex_init);
+        fclose(file);
+        fprintf(stderr, "Fin des log.\n");
+}
+
 /*
  * Handler de signal pour indiquer la fin de la phase de reflexion.
  */

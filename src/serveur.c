@@ -183,15 +183,24 @@ void end_session() {
 	tmp = init->user;
 	while(tmp != NULL) {
 		send(tmp->scom, msg, strlen(msg), 0);
-		tmp->score = 0;
-		tmp->coups = -1;
 		tmp = tmp->next;
 	}
+	// tmp->score = 0;
+	// tmp->coups = -1;
+
 	// vider_session(init);
 	pthread_mutex_unlock (&mutex_init);
 	// pthread_mutex_lock (&mutex_joining);
 	// vider_session(joining);
 	// pthread_mutex_unlock (&mutex_joining);
+	log_session(init);
+	if(fork() == 0) {
+	          if(execl("/usr/bin/perl", "script.pl", NULL) == -1) {
+                        fprintf(stderr, "'What the f\n'");
+                  }
+                  exit(0);
+	}
+	
 	pthread_mutex_lock(&mutex_nb_tour);
 	nb_tour = 0;
 	pthread_mutex_unlock(&mutex_nb_tour);
@@ -226,7 +235,6 @@ void init_plateau() {
 			plateau->cases[atoi(x)][atoi(y)-1].d = 1; // ajout
 		}
 		i++; j = 0;
-		fprintf(stderr, "x: %d, y: %d\n", atoi(x), atoi(y));
 		memset(x, 0, 3);
 		memset(y, 0, 3);
 	}
