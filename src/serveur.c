@@ -195,7 +195,7 @@ void end_session() {
 	// pthread_mutex_unlock (&mutex_joining);
 	log_session(init);
 	if(fork() == 0) {
-	          if(execl("/usr/bin/perl", "perl", "script.pl", NULL) == -1) {
+	          if(execl("/usr/bin/perl", "perl", "./src/script.pl", NULL) == -1) {
                         fprintf(stderr, "'What the f\n'");
                   }
                   exit(0);

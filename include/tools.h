@@ -16,10 +16,10 @@
 #include <pthread.h>
 
 #define		NB_CASES		16
-#define		SCORE_OBJ		1
+#define		SCORE_OBJ		5
 
 #define		TEMPS_REFLEXION		300		/* secondes */
-#define		TEMPS_ENCHERE		2		/* secondes */
+#define		TEMPS_ENCHERE		30		/* secondes */
 #define		TEMPS_RESOLUTION	60		/* secondes */
 
 #define		SERVER_PORT		2016

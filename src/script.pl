@@ -1,5 +1,5 @@
 #!/usr/bin/perl -l
-open(F,"log.ini");
+open(F,"./src/log.ini");
 	my %hash= ();
 	while($ligne=<F>){
 		if($ligne =~/((\w|\d)+) (\d+)/){
@@ -8,7 +8,7 @@ open(F,"log.ini");
 		}
 	}
 close F;
-open(F2,">log.ini");
+open(F2,">./src/log.ini");
 foreach my $e(sort { $hash{$b} <=> $hash{$a}}keys %hash){
 	print F2 "$e $hash{$e}";
 }
@@ -23,4 +23,6 @@ open (F3,">score.html");
     $html.="</BODY></HTML>";
     print F3 $html;
 close F3;
+
+print STDOUT "-------------------------------------------";
 
